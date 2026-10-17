@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#080f1b" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; base-uri 'none'; form-action 'none'" />
+<title>Mi Mundo — Synthetic Send Test</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;background:#080f1b;color:#edf8fc;--muted:#a4b8c8;--border:#284354;--cyan:#57d4e7;--pane:#142334ee}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}body{margin:0;background:radial-gradient(ellipse at top,#142b41 0,#080f1b 64%);min-height:100svh}button,textarea{font:inherit}button{cursor:pointer;-webkit-tap-highlight-color:transparent}button:disabled{opacity:.45;cursor:not-allowed}button:active:not(:disabled){transform:scale(.985)}
+.wrap{max-width:480px;margin:auto;padding:calc(env(safe-area-inset-top) + 18px) 17px calc(env(safe-area-inset-bottom) + 38px)}header{display:flex;gap:10px;justify-content:space-between;align-items:center;padding:6px 0 25px}.brand{font-size:10px;color:#79d8e9;letter-spacing:2.2px;font-weight:800;text-transform:uppercase;margin-bottom:4px}h1{font-size:31px;margin:0;letter-spacing:-1.25px}.spark{color:#65dcef}.status{border:1px solid #365269;border-radius:99px;color:#bdd6e2;padding:8px 10px;white-space:nowrap;font-size:11px}.status-dot{display:inline-block;width:7px;height:7px;background:#59c9a8;border-radius:100%;margin-right:5px}
+.card{background:var(--pane);border:1px solid var(--border);border-radius:22px;padding:17px;margin:0 0 14px;box-shadow:0 8px 30px #0003}h2{margin:0 0 12px;font-size:12px;letter-spacing:1px;font-weight:700;color:#a2c9d7;text-transform:uppercase}.speak{text-align:center;padding:25px 18px 23px}.mic{display:grid;place-items:center;width:108px;height:108px;border-radius:50%;border:2px solid #56d9ed;background:radial-gradient(circle,#186483 0%,#173f58 48%,#0e253b 100%);box-shadow:0 0 28px #19c9fb37;margin:0 auto 15px;font-size:40px;color:#fff}.mic.on{background:#652b42;border-color:#ff8e9c;box-shadow:0 0 32px #fe537a66;animation:pulse 2s infinite}@keyframes pulse{50%{box-shadow:0 0 18px #f8517755}}.speak-title{font-size:18px;font-weight:750}.speak-sub{font-size:13px;color:#b0c5d2;margin:7px 0 0;line-height:1.45}.toggle{background:transparent;border:0;color:#78d7ed;font-size:12px;padding:11px 10px 0}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.action{border:1px solid #355a6f;background:#1a3347;color:#effaff;border-radius:15px;min-height:79px;padding:10px 7px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;font-size:13px;font-weight:700}.action .emoji{font-size:26px;line-height:1.1}.action small{font-size:11px;color:#bbd0dd;font-weight:400}.tip{color:#a3bac8;font-size:12px;line-height:1.5;margin:13px 2px 0}
+.textarea{display:block;width:100%;border:1px solid #36576b;border-radius:14px;min-height:102px;background:#0b1b2a;color:#effaff;padding:13px;resize:vertical;font-size:16px;line-height:1.4;outline:none}.textarea:focus{border-color:#66d5ea}.section-help{font-size:12px;color:#a6bdcb;line-height:1.5;margin:0 0 10px}.notes-top{display:flex;align-items:center;justify-content:space-between;gap:7px}.pill{border:1px solid #3a5e70;background:#1a3544;border-radius:99px;color:#a9e9f4;padding:9px 11px;font-size:12px}.pill.on{color:#ffb4bb;border-color:#bd6d79}.attachments{display:grid;gap:9px}.attach{display:flex;align-items:center;gap:11px;background:#0b1b2a;border:1px solid #2b485b;border-radius:13px;padding:9px;min-width:0}.thumb{width:55px;height:54px;object-fit:cover;border-radius:8px;flex:none;background:#1b3647}.fileicon{width:55px;height:54px;display:grid;place-items:center;font-size:25px;border-radius:8px;background:#1a3e53;flex:none}.attach-body{min-width:0;flex:1}.attach-name{font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.attach-meta{font-size:11px;color:#b0c0ca;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.attach-actions{display:flex;gap:4px;align-items:center}.smallbtn{border:1px solid #456072;background:#183347;color:#e2faff;border-radius:8px;padding:8px 9px;font-size:12px}.smallbtn{text-decoration:none}.smallbtn.remove{color:#ffbdc7}.empty{padding:14px 11px;border:1px dashed #335569;border-radius:12px;text-align:center;font-size:12px;color:#99b1c1}.jobhead{display:flex;justify-content:space-between;align-items:center;gap:12px}.count{font-size:11px;color:#9db4c4}.transmit{background:linear-gradient(105deg,#27bdd9,#57d6c7);color:#05232e;border:0;width:100%;border-radius:16px;padding:18px 12px;font-size:16px;font-weight:850;box-shadow:0 10px 34px #0be1d41c}.bottomrow{display:flex;gap:8px;margin-top:11px}.secondary{background:transparent;border:1px solid #35566b;border-radius:12px;color:#d5e8f1;padding:12px;flex:1;font-size:12px;font-weight:650}.notice{border:1px solid #3d7181;background:#0e2d40;padding:13px;border-radius:13px;font-size:12px;line-height:1.5;margin:12px 0}.notice.warn{border-color:#936843;background:#362b20;color:#f9e6c9}.foot{margin:16px 5px;font-size:11px;line-height:1.55;text-align:center;color:#9badbe}.hidden{display:none!important}.sr{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.modal{position:fixed;inset:0;display:grid;place-items:center;background:#000b;z-index:20;padding:17px}.modalcontent{background:#132334;border:1px solid #4a6679;border-radius:23px;padding:22px;width:min(100%,450px);box-shadow:0 15px 50px #0009}.modalcontent h3{margin:0 0 10px;font-size:20px}.modalcontent p{font-size:14px;color:#c2d3dc;line-height:1.5}.modalcontent .buttons{display:flex;gap:9px;margin-top:18px}.modalcontent button{font-size:13px;border-radius:12px;padding:13px;flex:1;border:1px solid #436679;background:#244053;color:#fff}.modalcontent .primary{background:#37c5d3;color:#072732;font-weight:750;border:0}a{color:#84dfef}
+@media(max-width:360px){.status{font-size:10px;padding:7px}.wrap{padding-left:12px;padding-right:12px}.action{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.mic.on{animation:none}}
+</style>
+</head><body>
+<main class="wrap">
+<header><div><div class="brand">YOUR WORLD, ONE INSTRUCTION</div><h1>Mi Mundo <span class="spark">✦</span></h1></div><span class="status"><span class="status-dot"></span><span id="runtime">Starting…</span></span></header>
+<section class="card speak" aria-labelledby="speakTitle">
+ <button id="talk" class="mic" aria-label="Start speaking">🎙</button>
+ <div class="speak-title" id="speakTitle">Tap to speak</div>
+ <p class="speak-sub" id="speakHint">Tap again to finish. Give instructions before or after adding files.</p>
+ <button id="dictateTip" class="toggle" type="button">Need dictation help? Tap here</button>
+</section>
+<section class="card" aria-label="Capture and attach evidence">
+ <h2>Capture or add evidence</h2>
+ <div class="actions">
+  <button class="action" type="button" id="photo"><span class="emoji">📷</span>Take photo</button>
+  <button class="action" type="button" id="video"><span class="emoji">🎥</span>Record video</button>
+  <button class="action" type="button" id="photos"><span class="emoji">🖼️</span>Add from Photos</button>
+  <button class="action" type="button" id="files"><span class="emoji">📎</span>Add files <small>Files · Drive · XLS · PDF</small></button>
+ </div>
+ <p class="tip">You can add several photos, videos or documents to one job, in any order.</p>
+</section>
+<section class="card" aria-labelledby="notesTitle">
+ <div class="notes-top"><h2 id="notesTitle">Instructions & extra notes</h2><button class="pill" type="button" id="dictateNotes">🎙 Dictate text</button></div>
+ <p class="section-help">Describe what Mi Mundo should do. Add corrections or further instructions after the photo or video.</p>
+ <textarea id="instructions" class="textarea" placeholder="e.g. Add this to ARA's daily log, record it as a defect, and prepare an email for Joe and Ibiza Marine Centre…" autocomplete="off" spellcheck="true"></textarea>
+ <p class="tip">You can also use the microphone key on your iPhone keyboard to dictate directly into this box.</p>
+</section>
+<section class="card" aria-labelledby="jobTitle">
+ <div class="jobhead"><h2 id="jobTitle">This job</h2><span id="count" class="count">0 attachments</span></div>
+ <div id="attachments" class="attachments"><div class="empty">No attachments yet. A note-only job is fine too.</div></div>
+</section>
+<section class="card" aria-label="Receiver configuration"><h2>Secure receiver · test configuration</h2><p class="section-help">The receiver is not deployed. Enter an approved HTTPS receiver URL and test token only when one is available. Values are held in this browser session, not saved or exported.</p><input id="endpoint" class="textarea" style="min-height:48px" placeholder="https://your-approved-receiver.example" autocomplete="off" spellcheck="false" aria-label="Receiver base URL"><input id="token" class="textarea" style="min-height:48px;margin-top:8px" type="password" placeholder="Test bearer token" autocomplete="off" aria-label="Receiver test token"><p class="tip">Local development receivers on 127.0.0.1 cannot be reached from an iPhone unless hosted on an approved secure network endpoint.</p></section><button id="transmit" class="transmit" type="button">Transmit to Mi Mundo · Test receiver</button>
+<div class="bottomrow"><button type="button" class="secondary" id="export">Save job as ZIP</button><button type="button" class="secondary" id="clear">Clear this job</button></div>
+<div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
+<div class="foot">SYNTHETIC TEST ONLY · Transmit requires an approved reachable test receiver. Not connected to Drive, the Post Office or production evidence storage. Use synthetic test files only.</div>
+</main>
+<input class="sr" id="cameraPhoto" type="file" accept="image/*" capture="environment" aria-label="Take a photo" />
+<input class="sr" id="cameraVideo" type="file" accept="video/*" capture="environment" aria-label="Record a video" />
+<input class="sr" id="libraryPhotos" type="file" accept="image/*,video/*" multiple aria-label="Choose photos or videos" />
+<input class="sr" id="libraryFiles" type="file" multiple aria-label="Choose documents or files" />
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+ <div class="modalcontent"><h3 id="modalTitle">Job prepared</h3><p id="modalText"></p><div class="buttons"><button id="modalDismiss" type="button">Close</button><button class="primary" id="modalExport" type="button">Save job ZIP</button></div></div>
+</div>
+<noscript><div class="notice warn">JavaScript is blocked in this viewer. Open the hosted Mi Mundo link in Safari. Capture controls cannot run here.</div></noscript>
+<script>
+(()=>{'use strict';
+const $=(id)=>document.getElementById(id), state={attachments:[],recorder:null,stream:null,parts:[],recognition:null,active:null,baseText:'',priorText:'',sequence:0,starting:false,finishing:null,busy:false,jobId:crypto.randomUUID(),createdAt:new Date().toISOString()};
+const docText=$('instructions');
+function notify(message,type='ok'){$('notice').textContent=message;$('notice').className='notice'+(type==='warn'?' warn':'');if(type==='warn')$('notice').scrollIntoView({block:'nearest',behavior:'smooth'});}
+function mb(bytes){return bytes>=1048576?(bytes/1048576).toFixed(1)+' MB':Math.max(1,Math.ceil(bytes/1024))+' KB'}
+function stamp(){return new Date().toISOString().replace(/[:.]/g,'-')}
+function makeName(prefix,ext){return prefix+'-'+stamp()+'.'+ext}
+function addFiles(files,source='picked'){let count=0;for(const file of files){if(!file)continue;let url=URL.createObjectURL(file);state.attachments.push({file,url,source,addedAt:new Date().toISOString(),id:++state.sequence});count++;}render();if(count)notify(count+' item'+(count>1?'s':'')+' added to this job. Nothing has been sent.');}
+function render(){const box=$('attachments');box.textContent='';$('count').textContent=state.attachments.length+' attachment'+(state.attachments.length===1?'':'s');if(!state.attachments.length){let empty=document.createElement('div');empty.className='empty';empty.textContent='No attachments yet. A note-only job is fine too.';box.append(empty);return;}
+ for(const a of state.attachments){const row=document.createElement('div');row.className='attach';const type=a.file.type||'';let thumb;if(type.startsWith('image/')){thumb=document.createElement('img');thumb.src=a.url;thumb.className='thumb';thumb.alt='Image preview';}else{thumb=document.createElement('div');thumb.className='fileicon';thumb.textContent=type.startsWith('video/')?'🎬':type.startsWith('audio/')?'🎤':'📄';}
+ let body=document.createElement('div');body.className='attach-body';let title=document.createElement('div');title.className='attach-name';title.textContent=a.file.name||'Attachment';let sub=document.createElement('div');sub.className='attach-meta';sub.textContent=mb(a.file.size)+' · '+a.source;body.append(title,sub);
+ let acts=document.createElement('div');acts.className='attach-actions';let view=document.createElement('a');view.href=a.url;view.target='_blank';view.rel='noopener noreferrer';view.className='smallbtn';view.textContent='View';view.setAttribute('aria-label','View '+(a.file.name||'attachment'));let remove=document.createElement('button');remove.type='button';remove.className='smallbtn remove';remove.textContent='×';remove.setAttribute('aria-label','Remove '+(a.file.name||'attachment'));remove.onclick=()=>{URL.revokeObjectURL(a.url);state.attachments=state.attachments.filter(x=>x.id!==a.id);render();};acts.append(view,remove);row.append(thumb,body,acts);box.append(row);}
+}
+function openPicker(id){$(id).click();}
+$('photo').addEventListener('click',()=>openPicker('cameraPhoto'));
+$('video').addEventListener('click',()=>openPicker('cameraVideo'));
+$('photos').addEventListener('click',()=>openPicker('libraryPhotos'));
+$('files').addEventListener('click',()=>openPicker('libraryFiles'));
+for(const [id,src] of [['cameraPhoto','camera'],['cameraVideo','camera'],['libraryPhotos','photos'],['libraryFiles','files']]){$(id).addEventListener('change',(e)=>{addFiles([...e.target.files],src);e.target.value='';});}
+function updateVoiceUi(){let on=!!state.active;$('talk').classList.toggle('on',on);$('dictateNotes').classList.toggle('on',on);$('talk').textContent=on?'■':'🎙';$('talk').setAttribute('aria-label',on?'Finish recording':'Start speaking');$('speakTitle').textContent=on?'Listening — tap to finish':'Tap to speak';$('speakHint').textContent=on?'Talk normally. Tap the large button again to finish.':'Tap again to finish. Give instructions before or after adding files.';}
+function lock(on){state.busy=on;for(const id of ['talk','dictateNotes','transmit','export','modalExport','clear','photo','video','photos','files'])$(id).disabled=on;for(const el of document.querySelectorAll('.smallbtn'))el.disabled=on;docText.readOnly=on;}
+async function finishVoice(){
+ if(state.finishing)return state.finishing;
+ if(state.active==='speech'&&state.recognition){
+  const sr=state.recognition;
+  state.finishing=new Promise(resolve=>{const end=sr.onend;sr.onend=()=>{docText.readOnly=false;if(end)end();resolve();};try{sr.stop();}catch(_){resolve();}});
+ }else if(state.recorder&&state.recorder.state!=='inactive'){
+  const rec=state.recorder;
+  state.finishing=new Promise(resolve=>{rec.addEventListener('stop',resolve,{once:true});rec.stop();});
+ }
+ if(state.finishing)await state.finishing;
+ state.finishing=null;state.active=null;updateVoiceUi();
+}
+async function startAudioRecording(){if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder){notify('This viewer cannot access the microphone. Tap the notes box and use the iPhone keyboard microphone, or open the app over HTTPS in Safari.','warn');docText.focus();return;}
+ let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:true});}catch(e){notify('Microphone unavailable ('+(e.name||'permission issue')+'). You can dictate into the notes box using the iPhone keyboard microphone.','warn');docText.focus();return;}
+ let rec;try{let candidates=['audio/mp4','audio/webm;codecs=opus','audio/webm'];let mime=candidates.find(x=>MediaRecorder.isTypeSupported?.(x));rec=new MediaRecorder(stream,mime?{mimeType:mime}:undefined);}catch(e){stream.getTracks().forEach(t=>t.stop());notify('Audio recording is not supported here. Use your iPhone keyboard microphone in the notes box.','warn');docText.focus();return;}
+ const pieces=[];state.recorder=rec;state.stream=stream;
+ rec.addEventListener('dataavailable',e=>{if(e.data?.size)pieces.push(e.data)});
+ rec.addEventListener('stop',()=>{stream.getTracks().forEach(t=>t.stop());const type=rec.mimeType||'audio/mp4',ext=type.includes('webm')?'webm':type.includes('ogg')?'ogg':'m4a';const blob=new Blob(pieces,{type});if(blob.size){addFiles([new File([blob],makeName('MiMundo-voice-note',ext),{type})],'spoken audio');notify('Voice recording added. It has NOT been transcribed. Mi Mundo will need a connected transcription service to interpret it.');}else notify('No audio was captured.','warn');if(state.recorder===rec){state.recorder=null;state.stream=null;state.active=null;updateVoiceUi();}});
+ rec.addEventListener('error',()=>{stream.getTracks().forEach(t=>t.stop());state.active=null;updateVoiceUi();notify('Audio recording failed. Please try again or use keyboard dictation.','warn');});
+ try{rec.start(500);state.active='audio';updateVoiceUi();notify('Recording a voice note. Tap again to finish. Audio is saved with the job but will not be transcribed in this prototype.');}catch(e){stream.getTracks().forEach(t=>t.stop());notify('Unable to start audio recording.','warn');}
+}
+function startSpeech(){const Constructor=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Constructor)return false;
+ const sr=new Constructor();state.recognition=sr;sr.lang='en-GB';sr.continuous=true;sr.interimResults=true;const base=docText.value.trim();docText.readOnly=true;state.baseText=base;state.priorText='';
+ sr.onresult=(ev)=>{let final='',temporary='';for(let i=0;i<ev.results.length;i++){let segment=ev.results[i][0]?.transcript||'';if(ev.results[i].isFinal)final+=segment+' ';else temporary+=segment+' ';}state.priorText=final.trim();docText.value=[base,final.trim(),temporary.trim()].filter(Boolean).join('\n');};
+ sr.onerror=(e)=>{docText.readOnly=false;state.active=null;updateVoiceUi();notify('Speech recognition stopped: '+e.error+'. If speech does not work, record an audio note or use the keyboard microphone.','warn');};
+ sr.onend=()=>{docText.readOnly=false;if(state.active==='speech'){state.active=null;updateVoiceUi();}};
+ try{sr.start();state.active='speech';updateVoiceUi();notify('Listening. Your words should appear in Instructions & extra notes.');return true;}catch(e){docText.readOnly=false;state.recognition=null;notify('Live dictation is unavailable in this viewer; trying voice recording instead.','warn');return false;}
+}
+async function voiceAction(mode){
+ if(state.starting||state.busy)return;
+ state.starting=true;lock(true);
+ try{if(state.active)await finishVoice();else if(mode==='dictation'){
+  if(confirm('Browser dictation may use your device provider’s speech service. Audio is not preserved in this mode. Continue with non-sensitive test words?')){if(!startSpeech())await startAudioRecording();}
+ }else await startAudioRecording();}
+ catch(e){notify('Could not start voice capture: '+e.message,'warn');}
+ finally{state.starting=false;lock(false);}
+}
+$('talk').addEventListener('click',()=>voiceAction('audio'));
+$('dictateNotes').addEventListener('click',()=>voiceAction('dictation'));
+$('dictateTip').addEventListener('click',()=>{notify('On iPhone: tap the instructions box, then the microphone key on the keyboard to dictate. If you prefer an audio attachment, tap Speak where your browser allows mic access. On a hosted HTTPS page, permissions may work better than inside an app preview.','warn');docText.focus();});
+function closeModal(){$('modal').classList.add('hidden');}
+$('modalDismiss').onclick=closeModal;
+$('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
+function hasJob(){return !!docText.value.trim()||state.attachments.length>0;}
+async function makePackage(){const items=state.attachments.slice(),instructions=docText.value;
+ if(!hasJob())throw Error('Add instructions or an attachment first.');
+ if(items.length>100||items.reduce((n,a)=>n+a.file.size,0)>90*1024*1024)throw Error('Test receiver limit: at most 100 attachments and 90 MB total.');
+ const enc=new TextEncoder(),now=new Date(),day=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate(),time=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1),files=[];
+ const attachments=await Promise.all(items.map(async(a,i)=>({id:a.id,name:a.file.name,archive_path:'evidence/'+String(i+1).padStart(3,'0')+'-'+zipName(a.file.name),bytes:a.file.size,mime:a.file.type,source:a.source,added_at:a.addedAt,captured_at:null,file_last_modified:a.file.lastModified||null,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await a.file.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('')})));
+ const manifest={version:'0.3',job_id:state.jobId,job_created_at:state.createdAt,status:'LOCAL_EXPORT_NOT_TRANSMITTED',created_at:now.toISOString(),instructions,attachments};
+ files.push({name:'manifest.json',data:enc.encode(JSON.stringify(manifest,null,2))},{name:'instructions.txt',data:enc.encode(instructions||'(No written instructions)')});
+ for(let i=0;i<items.length;i++)files.push({name:attachments[i].archive_path,data:new Uint8Array(await items[i].file.arrayBuffer())});
+ let offset=0,locals=[],centrals=[];for(const f of files){const name=enc.encode(f.name),size=f.data.byteLength,crc=crc32(f.data);const l=new Uint8Array([80,75,3,4,20,0,0,8,0,0,...uint16(time),...uint16(day),...uint32(crc),...uint32(size),...uint32(size),...uint16(name.length),0,0]);locals.push(l,name,f.data);const c=new Uint8Array([80,75,1,2,20,0,20,0,0,8,0,0,...uint16(time),...uint16(day),...uint32(crc),...uint32(size),...uint32(size),...uint16(name.length),0,0,0,0,0,0,0,0,0,0,...uint32(offset)]);centrals.push(c,name);offset+=l.byteLength+name.byteLength+size;}
+ const cdsize=centrals.reduce((sum,x)=>sum+x.byteLength,0),end=new Uint8Array([80,75,5,6,0,0,0,0,...uint16(files.length),...uint16(files.length),...uint32(cdsize),...uint32(offset),0,0]);return new Blob([...locals,...centrals,end],{type:'application/zip'});
+}
+function validEndpoint(input){const u=new URL(input);if(u.username||u.password||u.search||u.hash||u.pathname!=='/'&&u.pathname!=='')throw Error('Enter only the receiver base URL (no path or credentials).');const local=['127.0.0.1','localhost'].includes(u.hostname);if(u.protocol!=='https:'&&!(local&&u.protocol==='http:'))throw Error('Receiver must use HTTPS (localhost development excepted).');return u.origin;}
+$('transmit').addEventListener('click',async()=>{if(state.busy)return;lock(true);try{
+ await finishVoice();const endpoint=validEndpoint($('endpoint').value.trim()),token=$('token').value;
+ if(token.length<32)throw Error('A test bearer token of at least 32 characters is required.');
+ const blob=await makePackage(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('');
+ notify('Uploading synthetic test job; waiting for verified receipt…');
+ const url=endpoint+'/v1/jobs/'+state.jobId;
+ const response=await fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/zip'},body:blob,cache:'no-store'});
+ const receipt=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error('Receiver rejected upload (HTTP '+response.status+', '+(receipt.status||'no receipt')+').');
+ if(receipt.job_id!==state.jobId||receipt.package_sha256!==hash||receipt.status!=='RECEIVED_TEST_ONLY')throw Error('Receiver receipt is incomplete or checksum differs.');
+ const verify=await fetch(url,{method:'GET',headers:{'Authorization':'Bearer '+token},cache:'no-store'});
+ const saved=await verify.json().catch(()=>({}));
+ if(!verify.ok||saved.package_sha256!==hash||saved.job_id!==state.jobId)throw Error('Independent receiver readback failed. Keep your local files.');
+ notify('RECEIVED TEST ONLY · ZIP checksum and receipt readback verified. Job '+state.jobId+'. No Post Office routing or production filing.');
+ }catch(e){notify('NOT VERIFIED / NOT SENT: '+e.message+'. Keep or export your local job.','warn');}finally{lock(false);}
+});
+function uint16(v){return [v&255,(v>>>8)&255]}function uint32(v){return [v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255]};
+const crcTable=(()=>{const a=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;a[n]=c>>>0;}return a;})();
+function crc32(data){let c=0xffffffff;for(let i=0;i<data.length;i++)c=crcTable[(c^data[i])&255]^(c>>>8);return (c^0xffffffff)>>>0;}
+function zipName(name){return name.replace(/[\\/\\:*?"<>|\u0000-\u001F]+/g,'_').slice(0,130)||'attachment';}
+async function exportZip(){await finishVoice();closeModal();const items=state.attachments.slice(),instructions=docText.value;if(items.reduce((n,a)=>n+a.file.size,0)>250*1024*1024){notify('This test build exports jobs up to 250 MB. Save a smaller job; your current attachments are still here.','warn');return;}if(!hasJob()){notify('Nothing to export yet.','warn');return;}const enc=new TextEncoder(),now=new Date(),day=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate(),time=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1),files=[];
+ const manifest={version:'0.3',job_id:state.jobId,job_created_at:state.createdAt,status:'LOCAL_EXPORT_NOT_TRANSMITTED',created_at:now.toISOString(),instructions,attachments:await Promise.all(items.map(async(a,i)=>({id:a.id,name:a.file.name,archive_path:'evidence/'+String(i+1).padStart(3,'0')+'-'+zipName(a.file.name),bytes:a.file.size,mime:a.file.type,source:a.source,added_at:a.addedAt,captured_at:null,file_last_modified:a.file.lastModified||null,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await a.file.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('')})))};files.push({name:'manifest.json',data:enc.encode(JSON.stringify(manifest,null,2))});files.push({name:'instructions.txt',data:enc.encode(instructions||'(No written instructions)')});
+ for(let i=0;i<items.length;i++){const a=items[i],data=new Uint8Array(await a.file.arrayBuffer());files.push({name:'evidence/'+String(i+1).padStart(3,'0')+'-'+zipName(a.file.name),data});}
+ let offset=0,locals=[],centrals=[];for(const f of files){const name=enc.encode(f.name),size=f.data.byteLength,crc=crc32(f.data);const l=new Uint8Array([80,75,3,4,20,0,0,8,0,0,...uint16(time),...uint16(day),...uint32(crc),...uint32(size),...uint32(size),...uint16(name.length),0,0]);locals.push(l,name,f.data);const c=new Uint8Array([80,75,1,2,20,0,20,0,0,8,0,0,...uint16(time),...uint16(day),...uint32(crc),...uint32(size),...uint32(size),...uint16(name.length),0,0,0,0,0,0,0,0,0,0,0,0,...uint32(offset)]);centrals.push(c,name);offset+=l.byteLength+name.byteLength+size;}
+ const cdsize=centrals.reduce((sum,x)=>sum+x.byteLength,0),end=new Uint8Array([80,75,5,6,0,0,0,0,...uint16(files.length),...uint16(files.length),...uint32(cdsize),...uint32(offset),0,0]);const blob=new Blob([...locals,...centrals,end],{type:'application/zip'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=makeName('MiMundo-job','zip');document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);notify('A local ZIP download was requested. Check your browser downloads/Files to confirm it saved. Nothing has been transmitted.');}
+async function guardedExport(){if(state.busy)return;lock(true);try{await exportZip();}catch(e){notify('Could not prepare ZIP: '+e.message,'warn');}finally{lock(false);}}
+$('export').onclick=guardedExport;$('modalExport').onclick=guardedExport;
+$('clear').onclick=async()=>{if(state.busy)return;lock(true);try{await finishVoice();}finally{lock(false);}if(!hasJob())return;if(!confirm('Delete all unsaved notes and attachments in this job? This cannot be undone.'))return;for(const a of state.attachments)URL.revokeObjectURL(a.url);state.attachments=[];docText.value='';state.jobId=crypto.randomUUID();state.createdAt=new Date().toISOString();render();notify('Current job cleared. No remote systems were changed.');};
+window.addEventListener('beforeunload',e=>{if(hasJob()){e.preventDefault();e.returnValue='';}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+window.addEventListener('pagehide',()=>{if(state.recorder?.state==='recording')state.recorder.stop();state.stream?.getTracks().forEach(t=>t.stop());});
+$('runtime').textContent='Ready · not connected';
+render();
+})();
+</script></body></html>
