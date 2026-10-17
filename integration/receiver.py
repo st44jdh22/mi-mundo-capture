@@ -120,7 +120,7 @@ def make_server(store, token, origin, port=0, host='127.0.0.1'):
             self.end_headers()
 
         def do_GET(self):
-            if self.path == '/healthz':
+            if self.path.split('?', 1)[0] == '/healthz':
                 return self.respond(200, {'status': 'SYNTHETIC_TEST_RECEIVER', 'storage': 'EPHEMERAL', 'routing': False})
             if not self.authorised():
                 return self.respond(401)
