@@ -1,0 +1,31 @@
+name: Mi Mundo Synthetic Receiver Tests
+on:
+  push:
+    branches: [review/send-button-receiver-v04]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  receiver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run authenticated receiver and validator tests
+        run: python -m unittest discover -s integration -p 'test_*.py' -v
+      - name: Check Send integration controls
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          page=Path("index.html").read_text()
+          checks=["method:'PUT'","method:'GET'","saved.package_sha256!==hash","id=\"endpoint\"","id=\"token\"","RECEIVED TEST ONLY"]
+          for check in checks: assert check in page, check
+          assert "connect-src 'none'" not in page
+          print("SEND_SOURCE_INTEGRATION_CHECKS_PASS")
+          PY
