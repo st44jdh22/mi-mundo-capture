@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#080f1b" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src blob: data:; media-src blob:; connect-src 'self' https: http://127.0.0.1:* http://localhost:*; base-uri 'none'; form-action 'none'" />
 <title>Mi Mundo — Capture v0.3</title>
 <style>
 :root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color-scheme:dark;background:#080f1b;color:#edf8fc;--muted:#a4b8c8;--border:#284354;--cyan:#57d4e7;--pane:#142334ee}
@@ -48,10 +48,10 @@
  <div class="jobhead"><h2 id="jobTitle">This job</h2><span id="count" class="count">0 attachments</span></div>
  <div id="attachments" class="attachments"><div class="empty">No attachments yet. A note-only job is fine too.</div></div>
 </section>
-<button id="transmit" class="transmit" type="button">Transmit to Mi Mundo · Not connected</button>
+<section class="card" aria-label="Receiver configuration"><h2>Secure receiver · test configuration</h2><p class="section-help">The receiver is not deployed. Enter an approved HTTPS receiver URL and test token only when one is available. Values are held in this browser session, not saved or exported.</p><input id="endpoint" class="textarea" style="min-height:48px" placeholder="https://your-approved-receiver.example" autocomplete="off" spellcheck="false" aria-label="Receiver base URL"><input id="token" class="textarea" style="min-height:48px;margin-top:8px" type="password" placeholder="Test bearer token" autocomplete="off" aria-label="Receiver test token"><p class="tip">Local development receivers on 127.0.0.1 cannot be reached from an iPhone unless hosted on an approved secure network endpoint.</p></section><button id="transmit" class="transmit" type="button">Transmit to Mi Mundo · Test receiver</button>
 <div class="bottomrow"><button type="button" class="secondary" id="export">Save job as ZIP</button><button type="button" class="secondary" id="clear">Clear this job</button></div>
 <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
-<div class="foot">Prototype v0.3 · No backend connection yet. Nothing is transmitted or emailed. Files exist only in the current open browser session unless you export them. Do not use real confidential client or medical material for tests.</div>
+<div class="foot">Prototype v0.4 · Transmit requires an approved reachable test receiver. Not connected to Drive, the Post Office or production evidence storage. Use synthetic test files only.</div>
 </main>
 <input class="sr" id="cameraPhoto" type="file" accept="image/*" capture="environment" aria-label="Take a photo" />
 <input class="sr" id="cameraVideo" type="file" accept="video/*" capture="environment" aria-label="Record a video" />
@@ -127,7 +127,34 @@ function closeModal(){$('modal').classList.add('hidden');}
 $('modalDismiss').onclick=closeModal;
 $('modal').addEventListener('click',e=>{if(e.target===$('modal'))closeModal();});
 function hasJob(){return !!docText.value.trim()||state.attachments.length>0;}
-$('transmit').addEventListener('click',async()=>{if(state.busy)return;lock(true);try{await finishVoice();}finally{lock(false);}if(!hasJob()){notify('Add instructions, a photo, a video or a file first.','warn');return;}const n=state.attachments.length;$('modalText').textContent='Your job contains '+(docText.value.trim()?'instructions':'no written instructions')+' and '+n+' attachment'+(n===1?'':'s')+'. The Mi Mundo intake is not connected yet. No files, emails or reports have been sent. You can save a ZIP copy with the originals and a manifest for testing.';$('modal').classList.remove('hidden');});
+async function makePackage(){const items=state.attachments.slice(),instructions=docText.value;
+ if(!hasJob())throw Error('Add instructions or an attachment first.');
+ if(items.length>100||items.reduce((n,a)=>n+a.file.size,0)>90*1024*1024)throw Error('Test receiver limit: at most 100 attachments and 90 MB total.');
+ const enc=new TextEncoder(),now=new Date(),day=((now.getFullYear()-1980)<<9)|((now.getMonth()+1)<<5)|now.getDate(),time=(now.getHours()<<11)|(now.getMinutes()<<5)|(now.getSeconds()>>1),files=[];
+ const attachments=await Promise.all(items.map(async(a,i)=>({id:a.id,name:a.file.name,archive_path:'evidence/'+String(i+1).padStart(3,'0')+'-'+zipName(a.file.name),bytes:a.file.size,mime:a.file.type,source:a.source,added_at:a.addedAt,captured_at:null,file_last_modified:a.file.lastModified||null,sha256:Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await a.file.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('')})));
+ const manifest={version:'0.3',job_id:state.jobId,job_created_at:state.createdAt,status:'LOCAL_EXPORT_NOT_TRANSMITTED',created_at:now.toISOString(),instructions,attachments};
+ files.push({name:'manifest.json',data:enc.encode(JSON.stringify(manifest,null,2))},{name:'instructions.txt',data:enc.encode(instructions||'(No written instructions)')});
+ for(let i=0;i<items.length;i++)files.push({name:attachments[i].archive_path,data:new Uint8Array(await items[i].file.arrayBuffer())});
+ let offset=0,locals=[],centrals=[];for(const f of files){const name=enc.encode(f.name),size=f.data.byteLength,crc=crc32(f.data);const l=new Uint8Array([80,75,3,4,20,0,0,8,0,0,...uint16(time),...uint16(day),...uint32(crc),...uint32(size),...uint32(size),...uint16(name.length),0,0]);locals.push(l,name,f.data);const c=new Uint8Array([80,75,1,2,20,0,20,0,0,8,0,0,...uint16(time),...uint16(day),...uint32(crc),...uint32(size),...uint32(size),...uint16(name.length),0,0,0,0,0,0,0,0,0,0,...uint32(offset)]);centrals.push(c,name);offset+=l.byteLength+name.byteLength+size;}
+ const cdsize=centrals.reduce((sum,x)=>sum+x.byteLength,0),end=new Uint8Array([80,75,5,6,0,0,0,0,...uint16(files.length),...uint16(files.length),...uint32(cdsize),...uint32(offset),0,0]);return new Blob([...locals,...centrals,end],{type:'application/zip'});
+}
+function validEndpoint(input){const u=new URL(input);if(u.username||u.password||u.search||u.hash||u.pathname!=='/'&&u.pathname!=='')throw Error('Enter only the receiver base URL (no path or credentials).');const local=['127.0.0.1','localhost'].includes(u.hostname);if(u.protocol!=='https:'&&!(local&&u.protocol==='http:'))throw Error('Receiver must use HTTPS (localhost development excepted).');return u.origin;}
+$('transmit').addEventListener('click',async()=>{if(state.busy)return;lock(true);try{
+ await finishVoice();const endpoint=validEndpoint($('endpoint').value.trim()),token=$('token').value;
+ if(token.length<32)throw Error('A test bearer token of at least 32 characters is required.');
+ const blob=await makePackage(),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await blob.arrayBuffer())),b=>b.toString(16).padStart(2,'0')).join('');
+ notify('Uploading synthetic test job; waiting for verified receipt…');
+ const url=endpoint+'/v1/jobs/'+state.jobId;
+ const response=await fetch(url,{method:'PUT',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/zip'},body:blob,cache:'no-store'});
+ const receipt=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error('Receiver rejected upload (HTTP '+response.status+', '+(receipt.status||'no receipt')+').');
+ if(receipt.job_id!==state.jobId||receipt.package_sha256!==hash||receipt.status!=='RECEIVED_TEST_ONLY')throw Error('Receiver receipt is incomplete or checksum differs.');
+ const verify=await fetch(url,{method:'GET',headers:{'Authorization':'Bearer '+token},cache:'no-store'});
+ const saved=await verify.json().catch(()=>({}));
+ if(!verify.ok||saved.package_sha256!==hash||saved.job_id!==state.jobId)throw Error('Independent receiver readback failed. Keep your local files.');
+ notify('RECEIVED TEST ONLY · ZIP checksum and receipt readback verified. Job '+state.jobId+'. No Post Office routing or production filing.');
+ }catch(e){notify('NOT VERIFIED / NOT SENT: '+e.message+'. Keep or export your local job.','warn');}finally{lock(false);}
+});
 function uint16(v){return [v&255,(v>>>8)&255]}function uint32(v){return [v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255]};
 const crcTable=(()=>{const a=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;a[n]=c>>>0;}return a;})();
 function crc32(data){let c=0xffffffff;for(let i=0;i<data.length;i++)c=crcTable[(c^data[i])&255]^(c>>>8);return (c^0xffffffff)>>>0;}
