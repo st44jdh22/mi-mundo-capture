@@ -1,0 +1,48 @@
+name: Mi Mundo Rules and PostgreSQL Contract
+on:
+  push:
+    branches:
+      - review/mi-mundo-postgres-backbone
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate rule proposal tests and model-provider contract
+        env:
+          PYTHONPATH: backbone
+        run: python -m unittest discover -s backbone -p 'test_*.py' -v
+      - name: Apply schema migrations to disposable Postgres
+        env:
+          PGPASSWORD: fixture-only
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f backbone/sql/001_core_schema.sql
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f backbone/sql/002_rules_inbox.sql
+      - name: Validate rule and Inbox tables exist
+        env:
+          PGPASSWORD: fixture-only
+        run: |
+          result=$(psql -h localhost -U postgres -At -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='mi_mundo' AND table_name IN ('rule_version','rule_evaluation','preference_observation','inbox_thread','inbox_message','notification_outbox','extraction_candidate')")
+          test "$result" = "7"
+          echo "POSTGRES_SCHEMA_CONTRACT_PASS"
