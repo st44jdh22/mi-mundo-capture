@@ -67,7 +67,7 @@ class FixtureStore:
             return self.read(job_id), True
 
 
-def make_server(store, token, origin, port=0):
+def make_server(store, token, origin, port=0, host='127.0.0.1'):
     """Loopback only. Caller owns test server lifetime and temporary store."""
     if len(token) < 32:
         raise ValueError('Use a random test token of at least 32 characters')
@@ -120,6 +120,8 @@ def make_server(store, token, origin, port=0):
             self.end_headers()
 
         def do_GET(self):
+            if self.path.split('?', 1)[0] == '/healthz':
+                return self.respond(200, {'status': 'SYNTHETIC_TEST_RECEIVER', 'storage': 'EPHEMERAL', 'routing': False})
             if not self.authorised():
                 return self.respond(401)
             job_id = self.job_id()
@@ -170,7 +172,7 @@ def make_server(store, token, origin, port=0):
             except OSError:
                 self.respond(503, {'status': 'STORAGE_NOT_VERIFIED'})
 
-    return ThreadingHTTPServer(('127.0.0.1', port), Handler)
+    return ThreadingHTTPServer((host, port), Handler)
 
 
 if __name__ == '__main__':
