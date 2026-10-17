@@ -1,6 +1,8 @@
 import io
 import json
 import secrets
+import os
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -89,6 +91,29 @@ class ReceiverTests(unittest.TestCase):
     def test_preflight_and_missing_receipt(self):
         self.assertEqual(self.request('OPTIONS')[0], 204)
         self.assertEqual(self.request('GET')[0], 404)
+
+    def test_javascript_client_to_python_receiver(self):
+        module = (Path(__file__).parent / 'capture-client.mjs').resolve().as_uri()
+        package = Path(self.tmp.name) / 'test.zip'
+        script = '''
+import {readFile} from 'node:fs/promises';
+const {CaptureClient} = await import(process.env.TEST_MODULE);
+const client = new CaptureClient({endpoint:process.env.TEST_ENDPOINT,
+  token:process.env.TEST_TOKEN,testLoopback:true});
+const blob = new Blob([await readFile(process.env.TEST_PACKAGE)]);
+const first = await client.transmit(process.env.TEST_JOB,blob);
+const repeat = await client.transmit(process.env.TEST_JOB,blob);
+if(first.receipt_id !== repeat.receipt_id || first.production_evidence_filed !== false)
+  throw new Error('Invalid test receipt');
+console.log('JS_TO_PYTHON_RECEIPT_AND_REPEAT_PASS');
+'''
+        result = subprocess.run(['node', '--input-type=module'], input=script, text=True,
+            capture_output=True, timeout=10, env={**os.environ,
+                'TEST_MODULE':module, 'TEST_ENDPOINT':self.url, 'TEST_TOKEN':self.token,
+                'TEST_PACKAGE':str(package), 'TEST_JOB':self.job_id})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('JS_TO_PYTHON_RECEIPT_AND_REPEAT_PASS', result.stdout)
+        self.assertEqual((self.store.root / self.job_id / 'original.zip').read_bytes(), self.body)
 
 
 if __name__ == '__main__':
