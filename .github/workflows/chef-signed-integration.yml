@@ -1,5 +1,8 @@
 name: Mi Mundo FOOD-CHEF Signed Fixture Integration
 on:
+  pull_request:
+    branches:
+      - review/mi-mundo-durable-inbox
   push:
     branches:
       - review/chef-conversation-mvp
