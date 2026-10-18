@@ -2,8 +2,9 @@
 from pathlib import Path
 import unittest
 
-SQL=Path(__file__).with_name('003_life_core.sql').read_text()
-DOC=Path(__file__).with_name('PORTABILITY.md').read_text()
+ROOT=Path(__file__).resolve().parents[1]
+SQL=(ROOT/'backbone/sql/003_life_core.sql').read_text()
+DOC=(ROOT/'docs/portable-life-core-v01.md').read_text()
 class CoreContract(unittest.TestCase):
     def test_isolated_workspace_scoped_tables(self):
         for name in ('workspace','membership','module','record','evidence','fact','job','operation'):
