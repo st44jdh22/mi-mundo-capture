@@ -35,5 +35,5 @@ class ApiTests(unittest.TestCase):
   rr=self.client.post(f'/v1/chef-demo/threads/{t}/simulate-response',headers=self.h);self.assertEqual(len(rr.json()['messages']),2)
   self.assertFalse(self.client.get('/healthz').json()['post_office_connected'])
  def test_html_has_real_no_live_disclaimer(self):
-  p=self.client.get('/chef-demo');self.assertEqual(p.status_code,200);self.assertIn('Replies are scripted',p.text);self.assertNotIn(TOKEN,p.text)
+  p=self.client.get('/chef-demo');self.assertEqual(p.status_code,200);self.assertIn('Chef replies are scripted',p.text);self.assertIn('Stop & review',p.text);self.assertIn('Send directly',p.text);self.assertNotIn(TOKEN,p.text)
 if __name__=='__main__':unittest.main()
