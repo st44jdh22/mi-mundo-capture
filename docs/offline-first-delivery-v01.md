@@ -51,3 +51,19 @@ L. Verify iPhone Safari/Home Screen/low-signal conditions and local-storage pers
 - PostgreSQL schema 001_core_schema.sql and 002_rules_inbox.sql, AI model provider contract, and local-outbox module are on a **review branch** only.
 - Local Node contract tests for the outbox were run with an evented in-memory IndexedDB simulation (8 cases). Real iPhone IndexedDB reliability, background upload, voice capture, Post Office handoff, push notifications and a production server Inbox are NOT validated.
 - No real personal data should be uploaded to the temporary test app; do not treat a green SYNTHETIC receipt as a backup.
+
+
+## 18 Oct 2026 addendum: unattended delivery, time-based local attention and app suspension
+**Owner requirement:** Stephen must be able to finish speaking, receive confirmed local-save status, immediately lock/leave his iPhone, and trust Mi Mundo to keep pursuing delivery without requiring a 1–5 minute watched Google Sheets or API operation. Do not mistake local capture for remote persistence, or receipt for departmental processing.
+
+**Foreground:** transmission immediately after verified on-device commit; retry schedule only for transient faults, indicative 30s, 60s, 2min, 5min, 15min + jitter, and on network-restoration events. Respect Retry-After and battery/cellular user preferences; authentication, duplicate mismatch, digest failures or permanent invalid requests require attention rather than aggressive retry.
+
+**Background/locked:** Safari PWA may be suspended and cannot provide guaranteed 30s retries or a closed-page retry timer. Prototype native iOS file-backed background `URLSessionUploadTask`, persisted job ID, digest, upload task mapping, OS delegate completion, automatic reconnect, and GET-first durable receipt reconciliation. iOS chooses scheduling; repeated launches/force quit or restricted background state can interrupt progress. The app should not promise always-on or fixed-interval retries.
+
+**Quiet escalation:** create an optional local device notification for a STILL UNCONFIRMED job after ~15 minutes and cancel if durable receipt is independently verified. Local notification permission is optional; do not expose a medical/document title on lock screen. The local Outbox Inbox should show a red attention dot and a visible 'Keep trying / Retry now' action when the app is opened. The remote Inbox persists server-originated acknowledgements, transcription errors, Post Office status and clarification messages. Coalesce repeated errors instead of generating multiple alerts every retry. No server-originated push can reach an offline phone.
+
+**Trust model:** `RECEIVED_TEST_ONLY` is test-only and cannot clear the no-loss/production pending indicator. A permanent uploaded object requires private object-store readback/hash check, a stable committed job record, and appropriate backup/retention evidence; a departmental Google Sheets write is a second independently checked state. Retain local originals under explicit retention policy, not immediately on HTTP 201.
+
+**Acceptance on iPhone:** test airplane mode -> recording -> successful file commit -> lock screen -> reopen and exact SHA readback; foreground retry; transition to Wi-Fi/4G while locked; app suspension and OS restart; forced quit (no guarantee automatic relaunch); too little storage; invalid login; hour-long outage; duplicate idempotent replay; offline-only local notification; reconnect and remote Inbox consistency; Voice transcription network failure preserves untouched original. All using synthetic fixtures until privacy and durable storage are approved.
+
+**Status:** design requirements saved; native background upload, local notification, installed iOS app, durable private backend and server Inbox are NOT implemented or validated. Reference authoritative engineering master Google Doc for governance.
