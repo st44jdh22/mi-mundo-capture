@@ -1,0 +1,46 @@
+name: Mi Mundo FOOD-CHEF Signed Fixture Integration
+on:
+  push:
+    branches:
+      - review/chef-conversation-mvp
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chef-signed-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: synthetic-ci-only
+          POSTGRES_DB: chef_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pilot dependencies
+        run: pip install -r integration/recovery_requirements.txt httpx
+      - name: Compile sources
+        run: python -m compileall -q integration
+      - name: Local SQL HTTP and signed receipt contract
+        working-directory: integration
+        run: python -m unittest -v test_chef_thread.py test_chef_signed_integration.py
+      - name: PostgreSQL signed bridge, restart and idempotence
+        env:
+          MI_MUNDO_CI_PG_URL: postgresql+psycopg://postgres:synthetic-ci-only@localhost:5432/chef_fixture
+        working-directory: integration
+        run: python -m unittest -v test_chef_signed_postgres.py
+      - name: Separate-process synthetic Chef signed exchange
+        working-directory: integration
+        run: python run_chef_signed_demo.py
