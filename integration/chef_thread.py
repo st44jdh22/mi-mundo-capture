@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib, hmac, os, time, uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Body
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import (MetaData, Table, Column, String, Integer, ForeignKeyConstraint,
@@ -31,6 +31,16 @@ class MessageInput(BaseModel):
  model_config=ConfigDict(extra='forbid')
  source_id:uuid.UUID
  body:str=Field(min_length=1,max_length=1000)
+
+class StageBody(BaseModel):
+ model_config=ConfigDict(extra='forbid')
+ origin_id:uuid.UUID
+ user_message_id:uuid.UUID
+
+class SignedBody(BaseModel):
+ model_config=ConfigDict(extra='forbid')
+ delivery_id:uuid.UUID
+ envelope:dict
 
 class Store:
  def __init__(self,url):
@@ -72,9 +82,17 @@ class Store:
   return self.get_thread(tid,owner)
 
 TOKEN_MIN=32
-def create_app(url,token):
+def create_app(url,token,*,actor_key=None,actor_token=None):
  if len(token)<TOKEN_MIN:raise ValueError('pilot token missing')
+ if (actor_key is None) != (actor_token is None):raise ValueError('both signed fixture actor key and actor token are required')
+ if actor_key is not None and (len(actor_key)<32 or len(actor_token)<32 or actor_token==token):
+  raise ValueError('signed fixture actor must have separate strong credentials')
  store=Store(url)
+ bridge=None
+ if actor_key is not None:
+  from chef_signed_bridge import SignedChefBridge
+  bridge=SignedChefBridge(store,metadata,threads,messages,actor_key)
+
  @asynccontextmanager
  async def lifecycle(app):
   yield
@@ -83,7 +101,7 @@ def create_app(url,token):
  def auth(authorization):
   if not authorization or not hmac.compare_digest(authorization,'Bearer '+token):raise HTTPException(status_code=401,detail='Unauthorised')
  @app.get('/healthz')
- def health():return {'status':'SYNTHETIC_ONLY','post_office_connected':False,'real_chef_connected':False,'original_media_archived':False}
+ def health():return {'status':'SYNTHETIC_ONLY','post_office_connected':False,'real_chef_connected':False,'original_media_archived':False,'signed_fixture_adapter':bridge is not None}
  @app.get('/chef-demo')
  def page():return HTMLResponse((Path(__file__).parent/'chef_demo.html').read_text(encoding='utf8'))
  @app.post('/v1/chef-demo/threads',status_code=201)
@@ -105,6 +123,33 @@ def create_app(url,token):
   auth(authorization)
   try:return store.respond_synthetic(tid)
   except KeyError:raise HTTPException(404,'Thread not found')
+ if bridge is not None:
+  def actor_auth(authorization):
+   if not authorization or not hmac.compare_digest(authorization,'Bearer '+actor_token):
+    raise HTTPException(status_code=401,detail='Signed fixture actor credential required')
+  @app.post('/v1/chef-demo/threads/{tid}/bridge/stage')
+  def stage(tid:str,body:StageBody=Body(...),authorization:str|None=Header(default=None)):
+   auth(authorization)
+   try:return bridge.stage(tid,str(body.origin_id),str(body.user_message_id))
+   except KeyError:raise HTTPException(404,'Demo thread or source message not found')
+   except PermissionError:raise HTTPException(403,'Synthetic messages only')
+   except ValueError:raise HTTPException(409,'Immutable source conflict')
+  @app.get('/v1/chef-demo/threads/{tid}/bridge')
+  def staged(tid:str,authorization:str|None=Header(default=None)):
+   auth(authorization)
+   try:return {'deliveries':bridge.thread_deliveries(tid),
+               'institutional_post_office_connected':False,
+               'signed_actor_fixture_only':True}
+   except KeyError:raise HTTPException(404,'Demo thread not found')
+  @app.post('/v1/chef-fixture/actor/receipt')
+  def actor_receipt(body:SignedBody=Body(...),authorization:str|None=Header(default=None)):
+   actor_auth(authorization)
+   try:
+    kind=body.envelope.get('receipt',{}).get('kind')
+    return bridge.receive(str(body.delivery_id),body.envelope,kind,int(time.time()))
+   except KeyError:raise HTTPException(404,'Fixture delivery not found')
+   except PermissionError:raise HTTPException(403,'Signed fixture receipt denied')
+   except (ValueError,TypeError):raise HTTPException(409,'Signed fixture receipt conflict')
  return app
 
 if __name__=='__main__':
