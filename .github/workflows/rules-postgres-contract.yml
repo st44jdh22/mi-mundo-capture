@@ -33,6 +33,11 @@ jobs:
         env:
           PYTHONPATH: backbone
         run: python -m unittest discover -s backbone -p 'test_*.py' -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test local offline outbox with synthetic failure fixtures
+        run: node --test integration/test_offline_outbox.mjs
       - name: Apply schema migrations to disposable Postgres
         env:
           PGPASSWORD: fixture-only
