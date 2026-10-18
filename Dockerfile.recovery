@@ -1,0 +1,7 @@
+FROM python:3.12-slim
+WORKDIR /app
+COPY integration/recovery_requirements.txt /app/integration/recovery_requirements.txt
+RUN pip install --no-cache-dir -r /app/integration/recovery_requirements.txt
+COPY integration/recovery_api.py integration/recovery_demo.html integration/recovery_demo.js integration/recovery_demo.css /app/integration/
+ENV PYTHONUNBUFFERED=1 MI_MUNDO_REVIEW_MODE=synthetic
+CMD ["sh", "-c", "exec uvicorn integration.recovery_api:app --host 0.0.0.0 --port ${PORT:-8080} --workers 1"]
