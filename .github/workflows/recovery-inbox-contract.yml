@@ -1,0 +1,46 @@
+name: Mi Mundo Synthetic Recovery + Inbox Contract
+on:
+  push:
+    branches:
+      - review/mi-mundo-durable-inbox
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: fixture-ci-only
+          POSTGRES_DB: recovery_fixture
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact pilot dependencies
+        run: pip install -r integration/recovery_requirements.txt httpx
+      - name: SQLite fixture and HTTP/Inbox tests
+        working-directory: integration
+        run: python -m unittest -v test_recovery_api.py
+      - name: PostgreSQL isolated fixture and restart proof
+        env:
+          MI_MUNDO_CI_PG_URL: postgresql+psycopg://postgres:fixture-ci-only@localhost:5432/recovery_fixture
+        working-directory: integration
+        run: python -m unittest -v test_recovery_postgres.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check browser UI
+        run: node --check integration/recovery_demo.js
