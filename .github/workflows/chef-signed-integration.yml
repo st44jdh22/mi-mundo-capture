@@ -41,7 +41,7 @@ jobs:
         run: python -m unittest -v test_chef_thread.py test_chef_signed_integration.py
       - name: Institutional Post Office read-only ledger contract
         working-directory: integration
-        run: python -m unittest -v test_postoffice_contract.py
+        run: python -m unittest -v test_postoffice_contract.py test_postoffice_dispatch.py
       - name: PostgreSQL signed bridge, restart and idempotence
         env:
           MI_MUNDO_CI_PG_URL: postgresql+psycopg://postgres:synthetic-ci-only@localhost:5432/chef_fixture
