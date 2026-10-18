@@ -78,5 +78,74 @@ class ReconcileTests(unittest.TestCase):
         self.assertTrue(result['all_verified'])
         self.assertEqual(prior,self.fake.write_count)
 
+    def test_policy_block_is_distinct_from_api_outage(self):
+        target=Target('private_narrative',{'entry':'synthetic morning note'},'HEALTH')
+        self.fake.policy_block.add(target.key)
+        result=self.db.apply(JOB,target,self.fake,original_verified=True)
+        self.assertEqual(result['status'],'POLICY_BLOCKED')
+        self.assertEqual(result['error'],'platform_safety_block')
+        self.assertEqual(self.fake.write_count.get(target.key,0),0)
+        self.assertEqual(self.fake.policy_attempts[target.key],1)
+
+    def test_two_verified_one_blocked_survives_restart_no_repeat(self):
+        three=[Target('morning_journal',{'entry':'synthetic'},'HEALTH'),
+               Target('morning_emotion',{'entry':'synthetic'},'HEALTH'),
+               Target('private_narrative',{'entry':'synthetic'},'HEALTH')]
+        self.fake.policy_block.add('private_narrative')
+        first=self.db.run(JOB,three,self.fake,original_verified=True)
+        self.assertEqual(first['counts'],{'POLICY_BLOCKED':1,'VERIFIED':2})
+        self.assertFalse(first['all_verified'])
+        self.db.close()
+        self.db=SyntheticReconciler(self.path)
+        second=self.db.run(JOB,three,self.fake,original_verified=True)
+        self.assertEqual(second['counts'],{'POLICY_BLOCKED':1,'VERIFIED':2})
+        self.assertEqual(self.fake.write_count,{'morning_journal':1,'morning_emotion':1})
+        self.assertEqual(self.fake.policy_attempts['private_narrative'],1)
+
+    def test_policy_hold_requires_review_and_compliant_remote_clearance(self):
+        targets=[Target('journal',{'entry':'synthetic'},'HEALTH'),
+                 Target('emotion',{'entry':'synthetic'},'HEALTH'),
+                 Target('narrative',{'entry':'synthetic'},'HEALTH')]
+        self.fake.policy_block.add('narrative')
+        self.db.run(JOB,targets,self.fake,original_verified=True)
+        with self.assertRaises(PermissionError):
+            self.db.release_policy_hold(JOB,targets[2],approved=False,reason='not approved')
+        with self.assertRaises(PermissionError):
+            self.db.release_policy_hold(JOB,targets[2],approved=True,reason='')
+        self.fake.policy_block.remove('narrative')  # independent synthetic safety clearance
+        held=self.db.run(JOB,targets,self.fake,original_verified=True)
+        self.assertEqual(held['counts']['POLICY_BLOCKED'],1) # NOT enough just to unblock remote
+        self.db.release_policy_hold(JOB,targets[2],approved=True,reason='safe independent review')
+        complete=self.db.run(JOB,targets,self.fake,original_verified=True)
+        self.assertTrue(complete['all_verified'])
+        self.assertEqual(self.fake.write_count,{'journal':1,'emotion':1,'narrative':1})
+        self.assertEqual(self.fake.policy_attempts['narrative'],1)
+
+    def test_changed_content_cannot_be_released(self):
+        original=Target('narrative',{'entry':'original'},'HEALTH')
+        self.fake.policy_block.add('narrative')
+        self.db.apply(JOB,original,self.fake,original_verified=True)
+        changed=Target('narrative',{'entry':'changed'},'HEALTH')
+        with self.assertRaisesRegex(ValueError,'payload changed'):
+            self.db.release_policy_hold(JOB,changed,approved=True,reason='reviewed')
+
+    def test_hold_remains_without_original_and_no_write(self):
+        target=Target('narrative',{'entry':'synthetic'},'HEALTH')
+        self.fake.policy_block.add(target.key)
+        self.db.apply(JOB,target,self.fake,original_verified=True)
+        with self.assertRaisesRegex(RuntimeError,'original not preserved'):
+            self.db.apply(JOB,target,self.fake,original_verified=False)
+        self.assertEqual(self.fake.write_count.get(target.key,0),0)
+
+    def test_policy_block_has_only_safe_generic_error(self):
+        target=Target('narrative',{'entry':'synthetic health text stays out of logs'},'HEALTH')
+        self.fake.policy_block.add(target.key)
+        result=self.db.apply(JOB,target,self.fake,original_verified=True)
+        self.assertEqual(result['error'],'platform_safety_block')
+        self.assertNotIn('health text',str(result))
+        held=self.db.apply(JOB,target,self.fake,original_verified=True)
+        self.assertEqual(held['error'],'held_for_independent_safety_review')
+        self.assertEqual(self.fake.policy_attempts[target.key],1)
+
 if __name__=='__main__':
     unittest.main()
