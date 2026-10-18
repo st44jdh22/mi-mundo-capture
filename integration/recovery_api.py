@@ -91,7 +91,7 @@ class RecoveryDatabase:
         kwargs={'pool_pre_ping':True}
         if url.startswith('sqlite:'):
             kwargs['connect_args']={'check_same_thread':False, 'timeout':15}
-        self.engine=create_engine(url,**kwargs)
+        if url.startswith('postgresql://'):\n            url='postgresql+psycopg://'+url[len('postgresql://'):]\n        self.engine=create_engine(url,**kwargs)
         if url.startswith('sqlite:'):
             from sqlalchemy import event
             @event.listens_for(self.engine, 'connect')
