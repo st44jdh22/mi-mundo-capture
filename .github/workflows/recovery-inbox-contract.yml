@@ -31,6 +31,11 @@ jobs:
           python-version: '3.12'
       - name: Install exact pilot dependencies
         run: pip install -r integration/recovery_requirements.txt httpx
+      - name: Compile all review Python sources (startup/syntax check)
+        run: python -m compileall -q integration backbone
+      - name: Case 2 date/correction/reconciliation regression
+        working-directory: backbone
+        run: python -m unittest -v test_case2_regression.py
       - name: SQLite fixture and HTTP/Inbox tests
         working-directory: integration
         run: python -m unittest -v test_recovery_api.py
