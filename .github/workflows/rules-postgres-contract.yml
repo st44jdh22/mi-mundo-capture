@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test local offline outbox with synthetic failure fixtures
-        run: node --test integration/test_offline_outbox.mjs
+        run: node --test integration/test_offline_outbox.mjs integration/test_inbox_status.mjs
       - name: Apply schema migrations to disposable Postgres
         env:
           PGPASSWORD: fixture-only
