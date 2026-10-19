@@ -7,7 +7,7 @@ ACT-20261019-PO-A58-RELIABILITY-01. **Development acceptance only.**
 ## Actual local evidence
 
 Python 3.12, SQLAlchemy 2.1.5, FastAPI 0.148.0, psycopg 3.3.6, SQLite files and
-independent destination fixtures. No live Google write, hosted test, worker
+independent destination fixtures. No live Google write, hosted application acceptance, worker
 activation, new credential, production migration or real A58 re-upload.
 
 - 34 new filing acceptance tests executed and passed on SQLite.
@@ -19,10 +19,24 @@ activation, new credential, production migration or real A58 re-upload.
 - The executable A58 and Head Chef demonstration passed; its actual output is
   retained in `docs/filing-acceptance-evidence.json`.
 
-The full integration command runs 160 cases: 124 execute, 36 skip. Combined
+The full local integration command runs 160 cases: 124 execute, 36 skip. Combined
 with the backbone suite, that is **169 executed passing tests**, not 205
-executed tests. The PostgreSQL workflow is supplied but a green CI run must
-be independently observed before claiming PostgreSQL acceptance.
+executed tests.
+
+## Independently observed PostgreSQL CI
+
+GitHub Actions run [39270565115](https://github.com/st44jdh22/mi-mundo-capture/actions/runs/39270565115)
+completed successfully for implementation commit
+`f10c8100d20e22a7cca7cd2760e08a1b68938a05`. The job's logs were independently
+read: the SQLite/integration step ran 160 cases with 36 skips, and the dedicated
+disposable PostgreSQL 16 step ran 34 cases with exactly one skip. Thus **33
+filing cases passed on PostgreSQL**, including leases, concurrency, restart,
+idempotence, reporting faults and origin API retrieval. The one skipped case
+was deliberately SQLite-only backup/restore. PostgreSQL pg_dump/restore is
+still a release gate. The A58/Head Chef demonstration step also passed.
+
+This CI uses a disposable PostgreSQL service, not the deployed Railway database.
+The following documentation update changes no tested implementation or workflow.
 
 Local PostgreSQL installation was attempted for isolated testing and blocked
 by environment setgroups/setuid permissions. No escalation, existing hosted DB
@@ -62,7 +76,7 @@ not an authenticated reply from the real Head Chef.
 
 ## Outstanding release evidence
 
-Disposable PostgreSQL CI, real Google gateway/CAS implementation and adapter
+Real Google gateway/CAS implementation and adapter
 acceptance, private cloud-original storage and restore, production principal
 and tenant authorisation, hosted origin Inbox delivery, cancellation of actual
 in-flight requests and operational monitoring remain unverified. The optional
