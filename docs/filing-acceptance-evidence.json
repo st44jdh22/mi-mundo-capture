@@ -1,0 +1,116 @@
+{
+  "mode": "LOCAL_SYNTHETIC_ONLY",
+  "a58_after_upload_and_logging_failure": {
+    "job_id": "27b27f59-6008-4074-8ed0-79fe4696d118",
+    "intake_id": "f9c5471e-6c3c-4632-b12d-a2e608dc6d3a",
+    "conversation_id": "synthetic-conversation",
+    "state": "RETRY PENDING",
+    "attempts": 1,
+    "error_code": "transient",
+    "next_attempt": 1030,
+    "partially_complete": false,
+    "targets": [
+      {
+        "target_id": "synthetic-brief",
+        "state": "QUEUED",
+        "verification": null
+      }
+    ],
+    "reporting_pending": true,
+    "department_acknowledged": false,
+    "test_only": true
+  },
+  "a58_recovered": {
+    "job_id": "27b27f59-6008-4074-8ed0-79fe4696d118",
+    "intake_id": "f9c5471e-6c3c-4632-b12d-a2e608dc6d3a",
+    "conversation_id": "synthetic-conversation",
+    "state": "VERIFIED COMPLETE",
+    "attempts": 2,
+    "error_code": null,
+    "next_attempt": 1030,
+    "partially_complete": false,
+    "targets": [
+      {
+        "target_id": "synthetic-brief",
+        "state": "VERIFIED COMPLETE",
+        "verification": {
+          "effect_id": "synthetic-27b27f59-6008-4074-8ed0-79fe4696d118-brief",
+          "destination": "synthetic-folder",
+          "name": "synthetic-brief.pdf",
+          "permissions": [
+            "synthetic-owner:owner"
+          ],
+          "expected_sha256": "44ad0110acbc352e9f9e8f9ed58e63418d53fb0595f9f6ef41bca2cafdbee401",
+          "size": 616,
+          "independent_readback": true
+        }
+      }
+    ],
+    "reporting_pending": false,
+    "department_acknowledged": false,
+    "test_only": true
+  },
+  "chef_simulated_records_verified": {
+    "job_id": "1c3e9740-db8b-4799-84c4-29914d66f621",
+    "intake_id": "eb08c4cf-69db-4a85-a72f-adc374e877a7",
+    "conversation_id": "synthetic-conversation",
+    "state": "VERIFIED COMPLETE",
+    "attempts": 1,
+    "error_code": null,
+    "next_attempt": 1030,
+    "partially_complete": false,
+    "targets": [
+      {
+        "target_id": "synthetic-activity",
+        "state": "VERIFIED COMPLETE",
+        "verification": {
+          "effect_id": "synthetic-1c3e9740-db8b-4799-84c4-29914d66f621-activity",
+          "destination": "synthetic-folder",
+          "name": "synthetic-activity.pdf",
+          "permissions": [
+            "synthetic-owner:owner"
+          ],
+          "expected_sha256": "13c12ab89a7306351eb033e92f4a2bedb2678da86e11cb3f9dafa54867b595f5",
+          "size": 19,
+          "independent_readback": true
+        }
+      },
+      {
+        "target_id": "synthetic-inventory",
+        "state": "VERIFIED COMPLETE",
+        "verification": {
+          "effect_id": "synthetic-1c3e9740-db8b-4799-84c4-29914d66f621-inventory",
+          "destination": "synthetic-folder",
+          "name": "synthetic-inventory.pdf",
+          "permissions": [
+            "synthetic-owner:owner"
+          ],
+          "expected_sha256": "c3964d9f08d9925a07e48be9a3b3eb5a37d7a214505199087c1d7a491ddcf14b",
+          "size": 20,
+          "independent_readback": true
+        }
+      },
+      {
+        "target_id": "synthetic-receipt",
+        "state": "VERIFIED COMPLETE",
+        "verification": {
+          "effect_id": "synthetic-1c3e9740-db8b-4799-84c4-29914d66f621-receipt",
+          "destination": "synthetic-folder",
+          "name": "synthetic-receipt.pdf",
+          "permissions": [
+            "synthetic-owner:owner"
+          ],
+          "expected_sha256": "44ad0110acbc352e9f9e8f9ed58e63418d53fb0595f9f6ef41bca2cafdbee401",
+          "size": 616,
+          "independent_readback": true
+        }
+      }
+    ],
+    "reporting_pending": true,
+    "department_acknowledged": false,
+    "test_only": true
+  },
+  "real_A58_reuploaded": false,
+  "real_inventory_writes": 0,
+  "external_calls": 0
+}
