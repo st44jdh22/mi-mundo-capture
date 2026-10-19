@@ -21,7 +21,7 @@ messages=Table('mm_chef_demo_messages',metadata,
  Column('owner_id',String(40),nullable=False), Column('source_id',String(36),nullable=False),
  Column('idempotency_key',String(72),nullable=False),Column('sender',String(24),nullable=False),
  Column('body',String(1000),nullable=False),Column('reply_to',String(36)),
- Column('delivery_state',String(32),nullable=False),Column('created_at',Integer,nullable=False),
+ Column('delivery_state',String(64),nullable=False),Column('created_at',Integer,nullable=False),
  ForeignKeyConstraint(['thread_id'],['mm_chef_demo_threads.thread_id']))
 # Unique stable acceptance: prevent source turn replay, including client network failure.
 from sqlalchemy import UniqueConstraint
