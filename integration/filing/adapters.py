@@ -118,11 +118,15 @@ class PostOfficeStatusAdapter:
                    for table, (identity, payload) in changes.items())
 
     def publish(self, event):
+        return self.publish_guarded(event, lambda: None)
+
+    def publish_guarded(self, event, guard):
         schemas, changes = self._changes(event)
         for table in changes:
             if tuple(self.gateway.headers(table)) != schemas[table]:
                 raise Conflict('Post Office schema changed: ' + table)
         for table, (identity, payload) in changes.items():
+            guard()
             self.gateway.upsert(table, identity, payload)
             if self.gateway.read(table, identity) != payload:
                 raise UnknownOutcome('Post Office projection readback missing')
