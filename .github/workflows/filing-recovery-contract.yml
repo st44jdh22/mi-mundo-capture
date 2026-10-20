@@ -1,9 +1,9 @@
 name: Test-only durable filing recovery
 on:
   pull_request:
-    branches: [review/chef-conversation-mvp]
+    branches: [review/chef-conversation-mvp, review/p0-agent-preflight-20261020]
   push:
-    branches: [review/postoffice-filing-recovery]
+    branches: [review/postoffice-filing-recovery, review/food-chef-automatic-roundtrip]
   workflow_dispatch:
 permissions:
   contents: read
@@ -40,3 +40,6 @@ jobs:
       - name: A58 and Chef fault-injection demonstration
         working-directory: integration
         run: python run_filing_acceptance.py
+      - name: Automatic authenticated Chef HTTP round trip (zero model calls)
+        working-directory: integration
+        run: python run_chef_automatic.py

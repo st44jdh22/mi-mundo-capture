@@ -456,12 +456,25 @@ class FilingService:
                     at=now, outcome='RESERVED'))
         # No SQL transaction is held during an injected network call.
         hook('report_claimed', row)
+        def report_guard():
+            with self.transaction() as conn:
+                control = self._control(conn)
+                current = conn.execute(select(outbox).where(outbox.c.event_id == row['event_id'])).mappings().one()
+                if current['lease_token'] != token or current['lease_until'] <= int(self.clock()):
+                    raise LeaseLost('Reporting lease expired or replaced')
+                if control['stopped']:
+                    raise StopRequested('Reporting stopped before unsent write')
         failure = None
         try:
+            report_guard()
             if not adapter.verify(row['payload']):
                 if reconciliation_only:
                     raise PermanentFailure('Reporting budget exhausted; delivery not verified')
-                adapter.publish(row['payload'])
+                report_guard()
+                if hasattr(adapter, 'publish_guarded'):
+                    adapter.publish_guarded(row['payload'], report_guard)
+                else:
+                    adapter.publish(row['payload'])
             hook('report_written', row)
             if not adapter.verify(row['payload']):
                 raise UnknownOutcome('Post Office result readback absent')
