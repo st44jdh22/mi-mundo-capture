@@ -353,6 +353,22 @@ class FilingTests(unittest.TestCase):
         for _ in range(5):self.submit(specification())
         with self.assertRaises(PermissionError):self.submit(specification())
 
+    def test_invalid_target_rejected_before_source_staging(self):
+        """Invalid synthetic target must not create external object effects."""
+        original = self.objects.put
+        calls = []
+        def spy(data):
+            calls.append(data)
+            return original(data)
+        self.objects.put = spy
+        bad = specification(chef=True)
+        bad['targets'][1]['destination'] = 'real-business-folder'
+        with self.assertRaises(PermissionError):
+            self.submit(bad)
+        self.assertEqual(calls, [])
+        with self.s.engine.connect() as conn:
+            self.assertEqual(conn.execute(select(jobs)).first(), None)
+
     def test_real_scope_and_path_traversal_rejected(self):
         with self.assertRaises(ValueError):self.submit(data=b'Real personal document')
         with self.assertRaises(PermissionError):self.submit(dict(self.spec,department='MARINE'))
