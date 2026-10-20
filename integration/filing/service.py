@@ -169,15 +169,10 @@ class FilingService:
         if data is not None and (not isinstance(data, bytes) or not data.startswith(
                 (b'SYNTHETIC\n', b'%PDF-1.4\n%SYNTHETIC\n')) or not 0 < len(data) <= 8*1024*1024):
             raise ValueError('Only bounded synthetic documents are permitted')
+        # Validate every destination and effect identity before staging any
+        # source bytes outside the SQL transaction. An invalid envelope must
+        # never create an orphaned source object.
         source_hash = digest(data) if data is not None else None
-        key, source_error = None, None
-        if data is not None:
-            try:
-                key = objects.put(data)
-                if digest(objects.get(key)) != source_hash:
-                    raise ValueError('Original bytes not independently retained')
-            except (OSError, ValueError) as error:
-                key, source_error = None, str(error)
         target_ids, effect_ids = set(), set()
         for target in spec['targets']:
             if set(target) != {'target_id','kind','destination','name','effect_id','permissions','value'}:
@@ -197,6 +192,14 @@ class FilingService:
             value = data if target['kind'] == 'FILE' else target['value'].encode()
             target.update(expected_sha256=digest(value) if value is not None else '',
                           size=len(value) if value is not None else 0)
+        key, source_error = None, None
+        if data is not None:
+            try:
+                key = objects.put(data)
+                if digest(objects.get(key)) != source_hash:
+                    raise ValueError('Original bytes not independently retained')
+            except (OSError, ValueError) as error:
+                key, source_error = None, str(error)
         fingerprint = digest(canonical({k:v for k,v in spec.items() if k != 'job_id'}).encode() + (source_hash or '').encode())
         now = int(self.clock())
         with self.transaction() as conn:
