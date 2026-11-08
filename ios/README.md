@@ -1,3 +1,5 @@
+> Photo development extension: see [PHOTO_DEVELOPMENT.md](PHOTO_DEVELOPMENT.md) for the current simulator/DAT source, verification limits and hardware hold. The original v0.1 notes below are retained as history.
+
 # Hey Sophie! for iPhone: native capture v0.1
 
 First native SwiftUI milestone in the existing Mi Mundo/HeySophie repository.

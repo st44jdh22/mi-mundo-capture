@@ -1,0 +1,327 @@
+import Foundation
+import Combine
+
+/// SDK-free build uses the identical photo persistence boundary with a fixture.
+/// DAT linkage is an explicit generator option; no SDK config at app launch.
+@MainActor
+final class MetaPhotoCamera: ObservableObject {
+    @Published private(set) var status = "READY"
+    @Published private(set) var receipt: PhotoReceipt?
+    @Published private(set) var error: String?
+    @Published private(set) var streaming = false
+    @Published private(set) var busy = false
+    private var pipeline: PhotoCapturePipeline?
+    private var bridge: DATPhotoBridge?
+
+    private func store() throws -> PhotoCapturePipeline {
+        if let pipeline { return pipeline }
+        let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                                   appropriateFor: nil, create: true)
+        let result = PhotoCapturePipeline(disk: try CaptureDisk(root: support.appendingPathComponent("HeySophieCaptures", isDirectory: true)))
+        pipeline = result
+        return result
+    }
+
+    func syntheticPhoto() {
+        guard !busy, bridge == nil else { return }
+        busy = true; receipt = nil; error = nil; status = "CAPTURING"
+        defer { busy = false }
+        do {
+            guard let url = Bundle.main.url(forResource: "synthetic-photo", withExtension: "jpg") else { throw PhotoError.invalidJPEG }
+            let pipeline = try store()
+            let request = try pipeline.begin(source: .syntheticFixture)
+            status = "SAVING"
+            _ = try pipeline.receive(Data(contentsOf: url), for: request)
+            // Construct a new store to verify persistence, not in-memory receipt state.
+            let reopened = PhotoCapturePipeline(disk: try CaptureDisk(root: pipeline.disk.root))
+            receipt = try reopened.verify(request.id)
+            status = Self.savedStatus
+        } catch { fail(error) }
+    }
+
+    func verifySaved() {
+        guard let id = receipt?.request.id else { return }
+        do { receipt = try store().verify(id); error = nil; status = Self.savedStatus }
+        catch { fail(error) }
+    }
+
+    func restoreLatest() {
+        guard !busy, bridge == nil else { return }
+        do {
+            let pipeline = try store()
+            if let capture = try pipeline.disk.load().captures.last(where: { $0.photoRequest != nil }) {
+                receipt = try pipeline.verify(capture.id)
+                error = nil
+                status = Self.savedStatus
+            }
+        } catch { fail(error) }
+    }
+
+    func connect() {
+        guard !busy, bridge == nil else { return }
+        error = nil; receipt = nil; busy = true; status = "CONNECTING"
+        do {
+            let driver = try DATPhotoBridge(pipeline: store())
+            driver.onReady = { [weak self] in
+                self?.busy = false; self?.streaming = true; self?.status = "READY"
+            }
+            driver.onSaving = { [weak self] in self?.status = "SAVING" }
+            driver.onSaved = { [weak self] receipt in
+                self?.receipt = receipt; self?.busy = false; self?.status = Self.savedStatus
+                self?.streaming = false
+                self?.bridge?.stop(); self?.bridge = nil
+            }
+            driver.onFailure = { [weak self] error in self?.fail(error) }
+            bridge = driver
+            try driver.connect()
+        } catch { stop(); fail(error) }
+    }
+
+    func capture() {
+        guard streaming, !busy else { return }
+        busy = true; receipt = nil; error = nil; status = "CAPTURING"
+        do { try bridge?.capture() }
+        catch { fail(error) }
+    }
+
+    func stop() {
+        bridge?.stop(); bridge = nil; busy = false; streaming = false
+        if receipt == nil { status = "READY" }
+    }
+
+    func backgrounded() {
+        let interrupted = bridge != nil
+        stop()
+        if interrupted, receipt == nil { fail(PhotoError.interrupted) }
+    }
+
+    func handleURL(_ url: URL) {
+        bridge?.handleURL(url)
+    }
+
+    private func fail(_ error: Error) {
+        bridge?.stop(); bridge = nil
+        busy = false; streaming = false; receipt = nil
+        self.error = error.localizedDescription; status = "FAILED"
+    }
+
+    static let savedStatus = "SAVED LOCALLY · NOT BACKED UP · NOT UPLOADED"
+}
+
+#if HS_META_DAT
+import MWDATCore
+import MWDATCamera
+#if targetEnvironment(simulator)
+import MWDATMockDevice
+#endif
+
+/// Source prepared against official 1.0.1 API/sample. Native compilation pending.
+/// One request per stream lifetime prevents late duplicate data being attributed
+/// to another request (PhotoData has no app request UUID).
+@MainActor
+final class DATPhotoBridge {
+    var onReady: (() -> Void)?
+    var onSaving: (() -> Void)?
+    var onSaved: ((PhotoReceipt) -> Void)?
+    var onFailure: ((Error) -> Void)?
+    private let pipeline: PhotoCapturePipeline
+    private var selector: AutoDeviceSelector?
+    private var session: DeviceSession?
+    private var camera: Camera?
+    private var request: PhotoRequest?
+    private let tokens = ListenerTokenBag()
+    private var discovery: Task<Void, Never>?
+    private var deadline: Task<Void, Never>?
+    private var stopped = false
+    private var configured = false
+    private var streamHasStarted = false
+
+    init(pipeline: PhotoCapturePipeline) throws { self.pipeline = pipeline }
+
+    func connect(mockPermissionGranted: Bool = true) throws {
+        #if targetEnvironment(simulator)
+        do { try Wearables.configure() }
+        catch WearablesError.alreadyConfigured { /* same process, another mock test/session */ }
+        configured = true
+        MockDeviceKit.shared.enable()
+        if !mockPermissionGranted { MockDeviceKit.shared.permissions.set(.camera, .denied) }
+        let mock = try MockDeviceKit.shared.pairGlasses(model: .metaRayBanDisplay)
+        guard let image = Bundle.main.url(forResource: "synthetic-photo", withExtension: "jpg"),
+              let video = Bundle.main.url(forResource: "synthetic-preview", withExtension: "mp4") else { throw PhotoError.invalidJPEG }
+        mock.services.camera.setCapturedImage(fileURL: image)
+        mock.services.camera.setCameraFeed(fileURL: video)
+        selector = AutoDeviceSelector(wearables: Wearables.shared)
+        mock.powerOn(); mock.unfold(); mock.don()
+        #elseif HS_META_PHYSICAL_APPROVED
+        // Prepared only. The checked-in generator never defines this flag.
+        do { try Wearables.configure() }
+        catch WearablesError.alreadyConfigured {}
+        configured = true
+        guard Wearables.shared.registrationState == .registered else { throw DATBuildError.hardwareHold }
+        selector = AutoDeviceSelector(wearables: Wearables.shared)
+        #else
+        throw DATBuildError.hardwareHold
+        #endif
+        discovery = Task { [weak self] in
+            guard let self, let selector = self.selector else { return }
+            for await device in selector.activeDeviceStream() {
+                guard !Task.isCancelled, !self.stopped else { return }
+                if device != nil {
+                    do { try await self.startSession() }
+                    catch { self.onFailure?(error) }
+                    return
+                }
+            }
+        }
+        startDeadline()
+    }
+
+    /// Prepared for a separately approved physical configuration; never called
+    /// by connect() in this build. No automatic permission redirect.
+    func registerAfterPhysicalApproval() async throws {
+        #if HS_META_PHYSICAL_APPROVED && !targetEnvironment(simulator)
+        do { try Wearables.configure() }
+        catch WearablesError.alreadyConfigured {}
+        configured = true
+        try await Wearables.shared.startRegistration()
+        #else
+        throw DATBuildError.hardwareHold
+        #endif
+    }
+
+    func requestCameraPermissionAfterPhysicalApproval() async throws {
+        #if HS_META_PHYSICAL_APPROVED && !targetEnvironment(simulator)
+        guard try await Wearables.shared.requestPermission(.camera) == .granted else { throw PhotoError.permissionDenied }
+        #else
+        throw DATBuildError.hardwareHold
+        #endif
+    }
+
+    func handleURL(_ url: URL) {
+        guard configured, url.scheme == "heysophie-meta-dev",
+              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              parts.queryItems?.contains(where: { $0.name == "metaWearablesAction" }) == true else { return }
+        Task { [weak self] in
+            do { _ = try await Wearables.shared.handleUrl(url) }
+            catch { self?.onFailure?(error) }
+        }
+    }
+
+    private func startSession() async throws {
+        guard let selector, !stopped else { return }
+        guard try await Wearables.shared.checkPermissionStatus(.camera) == .granted else { throw PhotoError.permissionDenied }
+        let session = try Wearables.shared.createSession(deviceSelector: selector)
+        self.session = session
+        session.errorPublisher.listen { [weak self] error in
+            Task { @MainActor in
+                guard let self, !self.stopped else { return }
+                self.onFailure?(error)
+            }
+        }.store(in: tokens)
+        session.statePublisher.listen { [weak self] state in
+            Task { @MainActor in
+                guard let self, !self.stopped else { return }
+                if state == .started {
+                    do { try self.startCamera() } catch { self.onFailure?(error) }
+                } else if state == .stopped || state == .paused {
+                    self.onFailure?(PhotoError.interrupted)
+                }
+            }
+        }.store(in: tokens)
+        try session.start()
+    }
+
+    private func startCamera() throws {
+        guard camera == nil, let session, session.state == .started else { return }
+        guard let camera = try session.addCamera(config: StreamConfiguration(videoCodec: .raw, resolution: .low, frameRate: 24)) else { throw PhotoError.interrupted }
+        self.camera = camera
+        camera.stream.errorPublisher.listen { [weak self] error in
+            Task { @MainActor in
+                guard let self, !self.stopped else { return }
+                self.onFailure?(error)
+            }
+        }.store(in: tokens)
+        camera.stream.statePublisher.listen { [weak self] state in
+            Task { @MainActor in
+                guard let self, !self.stopped else { return }
+                if state == .streaming {
+                    self.streamHasStarted = true
+                    self.deadline?.cancel(); self.onReady?()
+                } else if self.streamHasStarted && (state == .paused || state == .stopped) {
+                    self.onFailure?(PhotoError.interrupted)
+                }
+            }
+        }.store(in: tokens)
+        camera.stream.start()
+    }
+
+    func capture() throws {
+        guard request == nil, let camera, !stopped else { throw PhotoError.incomplete }
+        #if targetEnvironment(simulator)
+        let origin = PhotoSource.datMock
+        #else
+        let origin = PhotoSource.datCameraStream
+        #endif
+        let request = try pipeline.begin(source: origin, sdkDeviceID: session?.deviceId)
+        self.request = request
+        camera.stream.photoDataPublisher.listen { [weak self] photo in
+            let bytes = photo.data
+            Task { @MainActor in
+                guard let self, !self.stopped else { return }
+                do {
+                    self.onSaving?()
+                    let receipt = try self.pipeline.receive(bytes, for: request)
+                    self.deadline?.cancel()
+                    self.onSaved?(receipt)
+                    self.stop()
+                } catch { self.onFailure?(error); self.stop() }
+            }
+        }.store(in: tokens)
+        guard camera.stream.capturePhoto(format: .jpeg) else { throw PhotoError.interrupted }
+        startDeadline()
+    }
+
+    private func startDeadline() {
+        deadline?.cancel()
+        deadline = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(20)) } catch { return }
+            guard let self, !self.stopped else { return }
+            self.onFailure?(PhotoError.interrupted)
+            self.stop()
+        }
+    }
+
+    func stop() {
+        guard !stopped else { return }
+        stopped = true; deadline?.cancel(); discovery?.cancel()
+        tokens.clear(); camera?.stop(); session?.stop()
+        camera = nil; session = nil; selector = nil
+        #if targetEnvironment(simulator)
+        if configured { MockDeviceKit.shared.disable() }
+        #endif
+    }
+}
+#else
+@MainActor
+final class DATPhotoBridge {
+    var onReady: (() -> Void)?
+    var onSaving: (() -> Void)?
+    var onSaved: ((PhotoReceipt) -> Void)?
+    var onFailure: ((Error) -> Void)?
+    init(pipeline: PhotoCapturePipeline) throws {}
+    func connect() throws { throw DATBuildError.notLinked }
+    func capture() throws { throw DATBuildError.notLinked }
+    func stop() {}
+    func handleURL(_ url: URL) {}
+}
+#endif
+
+enum DATBuildError: LocalizedError {
+    case notLinked, hardwareHold
+    var errorDescription: String? {
+        switch self {
+        case .notLinked: return "Meta SDK is disabled in this offline build. Use the synthetic photo test."
+        case .hardwareHold: return "Physical glasses testing is held for separate installation and permission approval."
+        }
+    }
+}
