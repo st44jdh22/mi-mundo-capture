@@ -23,7 +23,8 @@ final class CaptureModel: ObservableObject {
             recovery = result.warnings
             saved = result.captures.filter { $0.state == .queued }
             // Keep any extra interrupted drafts visible in the Outbox too.
-            let drafts = result.captures.filter { $0.state == .draft }
+            let drafts = result.captures.filter { $0.state == .draft && $0.photoRequest == nil }
+            saved += result.captures.filter { $0.state == .draft && $0.photoRequest != nil }
             draft = drafts.last
             saved += drafts.dropLast()
             if draft == nil { let item = LocalCapture(); try disk.commit(item); draft = item }
@@ -70,7 +71,17 @@ final class CaptureModel: ObservableObject {
 @main
 struct HeySophieApp: App {
     @StateObject private var model = CaptureModel()
-    var body: some Scene { WindowGroup { SophieHome().environmentObject(model).privacySensitive() } }
+    var body: some Scene {
+        WindowGroup {
+            #if HS_META_DAT
+            // The simulator DAT variant exposes only the photo path; its plist
+            // intentionally grants no phone microphone/library/camera access.
+            PhotoProofScreen(refreshOutbox: { model.reload() }).privacySensitive()
+            #else
+            SophieHome().environmentObject(model).privacySensitive()
+            #endif
+        }
+    }
 }
 
 struct SophieHome: View {
@@ -180,6 +191,8 @@ struct SophieHome: View {
                     }
                 }.navigationTitle("Outbox")
             }.tabItem { Label("Outbox", systemImage: "tray") }.badge(model.saved.count).tag(1)
+            PhotoProofScreen(refreshOutbox: { model.reload() })
+                .tabItem { Label("Photo test", systemImage: "checkmark.shield") }.tag(2)
         }.tint(accent)
         .fileImporter(isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             do { for url in try result.get() { model.addFile(url) } }

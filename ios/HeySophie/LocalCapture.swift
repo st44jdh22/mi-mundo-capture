@@ -20,6 +20,7 @@ struct CaptureAttachment: Codable, Identifiable, Equatable {
     var contentType: String
     var bytes: Int
     var sha256: String
+    var source: PhotoSource? = nil // nil means legacy/unknown; never guessed as DAT
     var filename: String { id.uuidString.lowercased() }
 }
 
@@ -31,6 +32,9 @@ struct LocalCapture: Codable, Identifiable, Equatable {
     var text = ""
     var attachments: [CaptureAttachment] = []
     var state: State = .draft
+    // Optional fields keep original v1 manifests readable without rewriting them.
+    var photoRequest: PhotoRequest? = nil
+    var photoReceipt: PhotoReceipt? = nil
     // No uploaded/completed state exists until a reviewed receipt adapter is added.
 }
 
@@ -103,13 +107,13 @@ final class CaptureDisk {
         return (captures.sorted { $0.createdAt < $1.createdAt }, warnings)
     }
 
-    func attach(_ bytes: Data, name: String, contentType: String, to capture: LocalCapture) throws -> LocalCapture {
+    func attach(_ bytes: Data, name: String, contentType: String, to capture: LocalCapture, source: PhotoSource = .localPhoneImport) throws -> LocalCapture {
         guard capture.state == .draft else { throw CaptureFailure.integrity }
         guard !bytes.isEmpty, bytes.count <= Self.maxAttachment,
               capture.attachments.count < 20,
               capture.attachments.reduce(0, { $0 + $1.bytes }) + bytes.count <= Self.maxMessage else { throw CaptureFailure.tooLarge }
         let item = CaptureAttachment(id: UUID(), name: String(name.prefix(200)), contentType: contentType,
-                                     bytes: bytes.count, sha256: Self.hash(bytes))
+                                     bytes: bytes.count, sha256: Self.hash(bytes), source: source)
         let location = folder(capture.id)
         try fm.createDirectory(at: location, withIntermediateDirectories: true)
         let destination = location.appendingPathComponent(item.filename)
