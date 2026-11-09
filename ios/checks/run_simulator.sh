@@ -14,7 +14,15 @@ xcodebuild -version
 xcrun swift --version
 xcrun simctl list devices available
 if [ "${2:-}" = '--dat' ]; then
-  python3 ios/generate_project.py --dat
+  if [ -n "${HS_META_SIMULATOR_PROFILE:-}" ]; then
+    if [ "${HS_META_DEFER_MOCK_ACTIVATION:-0}" = 1 ]; then
+      python3 ios/generate_project.py --dat --simulator-profile "$HS_META_SIMULATOR_PROFILE" --defer-mock-activation
+    else
+      python3 ios/generate_project.py --dat --simulator-profile "$HS_META_SIMULATOR_PROFILE"
+    fi
+  else
+    python3 ios/generate_project.py --dat
+  fi
   trap 'python3 ios/generate_project.py' EXIT
 else
   python3 ios/generate_project.py

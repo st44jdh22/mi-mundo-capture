@@ -5,3 +5,4 @@ xcuserdata/
 *.ipa
 *.xcarchive
 *.xcresult
+__pycache__/

@@ -1,4 +1,6 @@
 import XCTest
+import CryptoKit
+import ImageIO
 @testable import HeySophie
 
 @MainActor
@@ -45,6 +47,10 @@ final class DATMockCameraTests: XCTestCase {
         await fulfillment(of: [denied], timeout: 30)
         bridge.stop()
         XCTAssertTrue(try pipeline.disk.load().captures.isEmpty)
+        XCTAssertTrue(bridge.diagnosticEvents.contains("camera-permission granted=false"))
+        XCTAssertFalse(bridge.diagnosticEvents.contains("session-created"))
+        XCTAssertFalse(bridge.diagnosticEvents.contains("capture-requested"))
+        XCTAssertNil(bridge.lastPhotoCallbackData)
     }
 
     func testOfficialMockPhotoReachesRealDiskBoundary() async throws {
@@ -66,6 +72,19 @@ final class DATMockCameraTests: XCTestCase {
         XCTAssertEqual(actual.request.source, .datMock)
         let reopened = PhotoCapturePipeline(disk: try CaptureDisk(root: root))
         XCTAssertEqual(try reopened.verify(actual.request.id), actual)
+        let capture = try XCTUnwrap(reopened.disk.load().captures.first)
+        let attachment = try XCTUnwrap(capture.attachments.first)
+        let stored = try reopened.disk.read(attachment, in: actual.request.id)
+        let callback = try XCTUnwrap(bridge.lastPhotoCallbackData)
+        XCTAssertEqual(stored, callback)
+        let digest = SHA256.hash(data: stored).map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(digest, actual.sha256)
+        XCTAssertEqual(stored.count, actual.bytes)
+        let image = try XCTUnwrap(CGImageSourceCreateWithData(stored as CFData, nil))
+        let decoded = try XCTUnwrap(CGImageSourceCreateImageAtIndex(image, 0, nil))
+        XCTAssertEqual(decoded.width, 32); XCTAssertEqual(decoded.height, 24)
+        XCTAssertEqual(CGImageSourceGetType(image) as String?, "public.jpeg")
+        print("[DATProof] independent-readback bytes=\(stored.count) sha256=\(digest) dimensions=\(decoded.width)x\(decoded.height)")
     }
 }
 #endif

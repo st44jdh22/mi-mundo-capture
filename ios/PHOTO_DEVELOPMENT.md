@@ -1,6 +1,6 @@
 # Photo capture development checkpoint
 
-Status: Mac compilation verified; offline XCTest passes (19/19). DAT mock discovery blocked (18/20 tests pass). Milestone A remains unaccepted.
+Status: Mac compilation verified; final offline XCTest passes (19/19) and DAT simulator camera-to-disk passes (20/20) with the explicit accessory-required simulator profile. Physical acceptance is not claimed. See the latest continuation below.
 Based on PR #13 at `405c8495169b4738d0b9d2ab46e60159ca868077`.
 This is a dependent draft, not an installable application or a physical-glasses proof.
 
@@ -56,7 +56,7 @@ Use an existing available simulator UUID (no signing or device installation):
 ```sh
 xcodebuild -showdestinations -project ios/HeySophie.xcodeproj -scheme HeySophie
 ios/checks/run_simulator.sh SIMULATOR_UUID
-ios/checks/run_simulator.sh SIMULATOR_UUID --dat
+HS_META_SIMULATOR_PROFILE=accessory-required ios/checks/run_simulator.sh SIMULATOR_UUID --dat
 ```
 
 The script prints Xcode/Swift versions and installed simulators, runs xcodebuild
@@ -209,3 +209,43 @@ mock test would still not authorize the physical milestone.
 Reference for the unsigned-keychain failure and simulator ad-hoc signing:
 https://github.com/meta/meta-wearables-dat-ios/issues/197
 (use the issue discussion if the comment anchor changes).
+
+
+## Verified simulator continuation, 9 November 2026, 15:43 GMT
+
+Stephen supplied Zara's GO instruction for controlled simulator-only configuration
+comparisons. The previous discovery blocker is resolved. See
+[the complete per-key source table and controlled results](SIMULATOR_TRANSPORT.md).
+Earlier failed results above remain historical evidence, not the current result.
+
+Final offline suite: **19/19 PASS**, exit 0. Final DAT suite: **20/20 PASS**, exit 0.
+Same SDK 1.0.1 revision, mock lifecycle, fixtures, 20-second bridge deadlines and
+30-second XCTest waits. The separate generated simulator plist and compile/platform
+guards fail closed for non-simulator builds. Original plists are unchanged.
+
+Minimum successful added declarations: UISupportedExternalAccessoryProtocols
+containing com.meta.ar.wearable and UIBackgroundModes containing only
+external-accessory. Removing either fails discovery/selection. This mode was tested
+only after the pinned binary's explicit validator requirement and unsuccessful
+no-background comparisons demonstrated the need; it is not proof of actual
+background execution. Bluetooth description/central mode reaches session creation
+but fails camera-stream connection. Local-network, Bonjour, processing, audio and
+Bluetooth-peripheral declarations are unnecessary for this successful mock path.
+No system permission prompt was granted; no permissions were changed automatically.
+
+The callback is actually received through photoDataPublisher. Returned JPEG: 901
+bytes, 32x24; stored bytes equal callback bytes. A fresh CaptureDisk verifies the
+receipt and an independent CryptoKit SHA-256 readback matches:
+4636673a5769f5332119e1ecbb6f75aa3eee6c6d83c5ed9ef392bdff1e674dd3.
+The unchanged input fixture is 742 bytes; the SDK mock encodes a different JPEG,
+so no fixture-byte preservation claim is made. Denial testing now proves actual
+camera permission denial after selection, no session creation, no request/callback
+and no saved capture. Tests were strengthened, never skipped or weakened.
+
+Both final log/result-bundle paths and reproduction commands are in the comparison
+report. Full process termination/relaunch UI verification and runtime no-egress
+tracing remain NOT RUN; native UI control could not bind the Simulator app. No
+physical capture, phone installation, account change, software installation,
+Railway access, expenditure or production merge/deployment occurred. The requested
+compiled simulated camera-to-storage path is demonstrated; broader acceptance and
+physical authorisation remain with Zara/Stephen.

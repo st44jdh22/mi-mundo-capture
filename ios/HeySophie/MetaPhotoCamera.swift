@@ -1,3 +1,6 @@
+#if HS_META_SIMULATOR_CONFIG && !targetEnvironment(simulator)
+#error("Transport experiment configuration is simulator-only")
+#endif
 import Foundation
 import Combine
 
@@ -136,8 +139,19 @@ final class DATPhotoBridge {
     private var configured = false
     private var streamHasStarted = false
     #if targetEnvironment(simulator)
+    private var mockActivation: Task<Void, Never>?
     private var mockGlasses: (any MockGlasses)?
+    private(set) var lastPhotoCallbackData: Data?
     #endif
+
+    private var observedDevices = Set<DeviceIdentifier>()
+    private(set) var diagnosticEvents: [String] = []
+    private func trace(_ event: String) {
+        #if targetEnvironment(simulator)
+        diagnosticEvents.append(event)
+        print("[DATProof] \(event)") // stages/counts only: never device IDs or media
+        #endif
+    }
 
     init(pipeline: PhotoCapturePipeline) throws { self.pipeline = pipeline }
 
@@ -146,15 +160,52 @@ final class DATPhotoBridge {
         do { try Wearables.configure() }
         catch WearablesError.alreadyConfigured { /* same process, another mock test/session */ }
         configured = true
+        trace("configured")
         MockDeviceKit.shared.enable(config: MockDeviceKitConfig(initialPermissionsGranted: mockPermissionGranted))
         let mock = try MockDeviceKit.shared.pairGlasses(model: .metaRayBanDisplay)
         mockGlasses = mock
+        trace("mock-paired count=\(MockDeviceKit.shared.pairedDevices.count)")
+        Wearables.shared.addDevicesListener { [weak self] devices in
+            Task { @MainActor in
+                guard let self, !self.stopped else { return }
+                self.trace("sdk-devices count=\(devices.count)")
+                for id in devices {
+                    if let device = Wearables.shared.deviceForIdentifier(id) {
+                        self.trace("device link=\(device.linkState) don=\(device.donState) hinge=\(device.hingeState) compatibility=\(device.compatibility())")
+                        if self.observedDevices.insert(id).inserted {
+                            device.addDeviceStateListener { [weak self] state in
+                                Task { @MainActor in
+                                    guard let self, !self.stopped else { return }
+                                    self.trace("device-state link=\(state.linkState) don=\(state.donState) hinge=\(state.hingeState) compatibility=\(state.compatibility)")
+                                }
+                            }.store(in: self.tokens)
+                        }
+                    }
+                }
+            }
+        }.store(in: tokens)
         guard let image = Bundle.main.url(forResource: "synthetic-photo", withExtension: "jpg"),
               let video = Bundle.main.url(forResource: "synthetic-preview", withExtension: "mp4") else { throw PhotoError.invalidJPEG }
         mock.services.camera.setCapturedImage(fileURL: image)
         mock.services.camera.setCameraFeed(fileURL: video)
         selector = AutoDeviceSelector(wearables: Wearables.shared)
+        #if HS_META_DEFER_MOCK_ACTIVATION
+        // Separate ordering control; the transport comparisons use the original order.
+        mockActivation = Task { [weak self] in
+            for await devices in Wearables.shared.devicesStream() {
+                guard !Task.isCancelled, let self, !self.stopped else { return }
+                if devices.contains(mock.deviceIdentifier) {
+                    self.trace("activation-after-sdk-discovery")
+                    mock.powerOn(); mock.unfold(); mock.don()
+                    self.trace("mock-powered-unfolded-donned")
+                    return
+                }
+            }
+        }
+        #else
         mock.powerOn(); mock.unfold(); mock.don()
+        trace("mock-powered-unfolded-donned")
+        #endif
         #elseif HS_META_PHYSICAL_APPROVED
         // Prepared only. The checked-in generator never defines this flag.
         do { try Wearables.configure() }
@@ -169,6 +220,7 @@ final class DATPhotoBridge {
             guard let self, let selector = self.selector else { return }
             for await device in selector.activeDeviceStream() {
                 guard !Task.isCancelled, !self.stopped else { return }
+                self.trace("selector active=\(device != nil)")
                 if device != nil {
                     do { try await self.startSession() }
                     catch { self.onFailure?(error) }
@@ -212,9 +264,12 @@ final class DATPhotoBridge {
 
     private func startSession() async throws {
         guard let selector, !stopped else { return }
-        guard try await Wearables.shared.checkPermissionStatus(.camera) == .granted else { throw PhotoError.permissionDenied }
+        let permission = try await Wearables.shared.checkPermissionStatus(.camera)
+        trace("camera-permission granted=\(permission == .granted)")
+        guard permission == .granted else { throw PhotoError.permissionDenied }
         let session = try Wearables.shared.createSession(deviceSelector: selector)
         self.session = session
+        trace("session-created")
         session.errorPublisher.listen { [weak self] error in
             Task { @MainActor in
                 guard let self, !self.stopped else { return }
@@ -224,6 +279,7 @@ final class DATPhotoBridge {
         session.statePublisher.listen { [weak self] state in
             Task { @MainActor in
                 guard let self, !self.stopped else { return }
+                self.trace("session-state \(state)")
                 if state == .started {
                     do { try self.startCamera() } catch { self.onFailure?(error) }
                 } else if state == .stopped || state == .paused {
@@ -238,6 +294,7 @@ final class DATPhotoBridge {
         guard camera == nil, let session, session.state == .started else { return }
         guard let camera = try session.addCamera(config: StreamConfiguration(videoCodec: .raw, resolution: .low, frameRate: 24)) else { throw PhotoError.interrupted }
         self.camera = camera
+        trace("camera-added")
         camera.stream.errorPublisher.listen { [weak self] error in
             Task { @MainActor in
                 guard let self, !self.stopped else { return }
@@ -247,6 +304,7 @@ final class DATPhotoBridge {
         camera.stream.statePublisher.listen { [weak self] state in
             Task { @MainActor in
                 guard let self, !self.stopped else { return }
+                self.trace("stream-state \(state)")
                 if state == .streaming {
                     self.streamHasStarted = true
                     self.deadline?.cancel(); self.onReady?()
@@ -267,14 +325,20 @@ final class DATPhotoBridge {
         #endif
         let request = try pipeline.begin(source: origin, sdkDeviceID: session?.deviceId)
         self.request = request
+        trace("capture-requested")
         camera.stream.photoDataPublisher.listen { [weak self] photo in
             let bytes = photo.data
             Task { @MainActor in
                 guard let self, !self.stopped else { return }
                 do {
+                    #if targetEnvironment(simulator)
+                    self.lastPhotoCallbackData = bytes
+                    #endif
+                    self.trace("photo-callback bytes=\(bytes.count)")
                     self.onSaving?()
                     let receipt = try self.pipeline.receive(bytes, for: request)
                     self.deadline?.cancel()
+                    self.trace("saved-verified bytes=\(receipt.bytes)")
                     self.onSaved?(receipt)
                     self.stop()
                 } catch { self.onFailure?(error); self.stop() }
@@ -289,6 +353,7 @@ final class DATPhotoBridge {
         deadline = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(20)) } catch { return }
             guard let self, !self.stopped else { return }
+            self.trace("deadline sdk-devices=\(Wearables.shared.devices.count) selected=\(self.selector?.activeDevice != nil) session=\(self.session != nil) camera=\(self.camera != nil)")
             self.onFailure?(self.session == nil ? DATBuildError.discoveryTimedOut : PhotoError.interrupted)
             self.stop()
         }
@@ -300,6 +365,7 @@ final class DATPhotoBridge {
         tokens.clear(); camera?.stop(); session?.stop()
         camera = nil; session = nil; selector = nil
         #if targetEnvironment(simulator)
+        mockActivation?.cancel(); mockActivation = nil
         mockGlasses = nil
         if configured { MockDeviceKit.shared.disable() }
         #endif
