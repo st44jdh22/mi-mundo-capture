@@ -34,7 +34,12 @@ struct PhotoProofScreen: View {
             }.navigationTitle("Photo test")
         }
         .onOpenURL { camera.handleURL($0) }
-        .task { camera.restoreLatest() }
+        .task {
+            camera.restoreLatest()
+            #if DEBUG && HS_META_SIMULATOR_CONFIG && targetEnvironment(simulator)
+            MetaPhotoCamera.startSimulatorProofIfRequested()
+            #endif
+        }
         .onChange(of: camera.receipt) { _, _ in refreshOutbox() }
         .onChange(of: phase) { _, state in
             if state == .background { camera.backgrounded() }

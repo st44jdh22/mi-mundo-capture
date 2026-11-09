@@ -105,7 +105,7 @@ Final verification (same Mac/Xcode/Swift/runtime as the 15:10 checkpoint):
 - Static validation: all ten profiles deterministic, exact added-key/mode sets verified, original values/telemetry opt-outs retained, simulator-only target/compile guard present, invalid option combinations rejected.
 - Shell syntax and git whitespace checks pass. The original seven CaptureDisk and ten PhotoCapture tests remain intact.
 - SDK emits duplicate Objective-C class warnings from its Camera/Mock binaries; these do not fail this suite, and vendor binaries were not patched.
-- Actual app process-restart UI test and runtime no-egress trace remain NOT RUN. Native UI automation could not bind the Simulator app; no UI permission grant or workaround was attempted. Fresh-store persistence is tested, not process restart.
+- At this transport checkpoint, actual process-restart UI test and runtime no-egress trace were NOT RUN. The subsequent [restart/network report](RESTART_NETWORK_VERIFICATION.md) now verifies normal-process relaunch and bounded traffic observation, with packet-level attribution still blocked. Native UI automation was unavailable at that earlier checkpoint; the later supported simctl process-lifecycle proof closes the restart gap without a new permission.
 - Physical glasses, locked phone, signing/installation to a phone, account changes and cloud delivery remain NOT RUN / outside authority.
 
 Reproduce the successful path:

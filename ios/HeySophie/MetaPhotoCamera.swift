@@ -15,6 +15,11 @@ final class MetaPhotoCamera: ObservableObject {
     @Published private(set) var busy = false
     private var pipeline: PhotoCapturePipeline?
     private var bridge: DATPhotoBridge?
+    #if DEBUG && HS_META_SIMULATOR_CONFIG && targetEnvironment(simulator)
+    private var simulatorConnectionRequested = false
+    private var simulatorFailureEvents: [String] = []
+    private static var simulatorProofTask: Task<Void, Never>?
+    #endif
 
     private func store() throws -> PhotoCapturePipeline {
         if let pipeline { return pipeline }
@@ -62,6 +67,9 @@ final class MetaPhotoCamera: ObservableObject {
 
     func connect() {
         guard !busy, bridge == nil else { return }
+        #if DEBUG && HS_META_SIMULATOR_CONFIG && targetEnvironment(simulator)
+        simulatorConnectionRequested = true
+        #endif
         error = nil; receipt = nil; busy = true; status = "CONNECTING"
         do {
             let driver = try DATPhotoBridge(pipeline: store())
@@ -103,10 +111,84 @@ final class MetaPhotoCamera: ObservableObject {
     }
 
     private func fail(_ error: Error) {
+        #if DEBUG && HS_META_SIMULATOR_CONFIG && targetEnvironment(simulator)
+        simulatorFailureEvents = bridge?.diagnosticEvents ?? []
+        #endif
         bridge?.stop(); bridge = nil
         busy = false; streaming = false; receipt = nil
         self.error = error.localizedDescription; status = "FAILED"
     }
+
+    #if DEBUG && HS_META_SIMULATOR_CONFIG && targetEnvironment(simulator)
+    /// Explicit CLI-only normal-process proof. Never compiled for a phone build.
+    /// Does not configure the SDK in restore mode and never grants permissions.
+    static func startSimulatorProofIfRequested() {
+        guard simulatorProofTask == nil,
+              let mode = ProcessInfo.processInfo.environment["HS_META_PROOF_MODE"],
+              ["capture", "restore"].contains(mode) else { return }
+        // One process-wide owner, independent of SwiftUI view reconciliation.
+        // Uses the normal bridge and app store, not XCTest or a replacement fixture.
+        simulatorProofTask = Task { @MainActor in
+            let camera = MetaPhotoCamera()
+            camera.restoreLatest()
+            await camera.runSimulatorProofIfRequested()
+        }
+    }
+
+    private func runSimulatorProofIfRequested() async {
+        guard let mode = ProcessInfo.processInfo.environment["HS_META_PROOF_MODE"],
+              ["capture", "restore"].contains(mode) else { return }
+        do {
+            if mode == "capture" {
+                connect()
+                for _ in 0..<300 {
+                    if status == "FAILED" { throw PhotoError.interrupted }
+                    if receipt != nil { break }
+                    if streaming && !busy { capture() }
+                    try await Task.sleep(for: .milliseconds(100))
+                }
+            }
+            let current = try verifiedCurrentReceipt()
+            let pipeline = try store()
+            guard let capture = try pipeline.disk.load().captures.first(where: { $0.id == current.request.id }),
+                  let attachment = capture.attachments.first else { throw PhotoError.incomplete }
+            struct Snapshot: Encodable {
+                let processID: Int32
+                let mode: String
+                let sdkConnectionRequested: Bool
+                let receipt: PhotoReceipt
+                let relativeFile: String
+                let verifiedAt: String
+            }
+            let snapshot = Snapshot(processID: ProcessInfo.processInfo.processIdentifier, mode: mode,
+                                    sdkConnectionRequested: simulatorConnectionRequested, receipt: current,
+                                    relativeFile: pipeline.disk.folder(current.request.id).lastPathComponent + "/" + attachment.filename,
+                                    verifiedAt: PhotoCapturePipeline.timestamp())
+            try writeSimulatorProof(JSONEncoder().encode(snapshot), name: mode)
+            print("[DATProof] process-proof mode=\(mode) verified=true bytes=\(current.bytes) sha256=\(current.sha256)")
+        } catch {
+            // Failure is a report, never a fabricated receipt or automatic recapture.
+            let report: [String: Any] = ["mode": mode, "failed": "true", "reason": self.error ?? error.localizedDescription,
+                                         "events": simulatorFailureEvents]
+            if let bytes = try? JSONSerialization.data(withJSONObject: report) { try? writeSimulatorProof(bytes, name: mode) }
+        }
+    }
+
+    private func verifiedCurrentReceipt() throws -> PhotoReceipt {
+        guard let receipt else { throw PhotoError.incomplete }
+        return try store().verify(receipt.request.id)
+    }
+
+    private func writeSimulatorProof(_ bytes: Data, name: String) throws {
+        let support = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
+                                                   appropriateFor: nil, create: true)
+        var folder = support.appendingPathComponent("HSPhotoProof", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var values = URLResourceValues(); values.isExcludedFromBackup = true
+        try folder.setResourceValues(values)
+        try bytes.write(to: folder.appendingPathComponent(name + ".json"), options: [.atomic, .completeFileProtection])
+    }
+    #endif
 
     static let savedStatus = "SAVED LOCALLY · NOT BACKED UP · NOT UPLOADED"
 }

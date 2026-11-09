@@ -85,10 +85,11 @@ for scope in ['project','app','test']:
         if args.simulator_profile:
             settings['SUPPORTED_PLATFORMS'] = 'iphonesimulator'
         if args.dat:
-            settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited) HS_META_DAT' + (' HS_META_SIMULATOR_CONFIG' if args.simulator_profile else '') + (' HS_META_DEFER_MOCK_ACTIVATION' if args.defer_mock_activation else '')
+            settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = '$(inherited) HS_META_DAT' + (' DEBUG' if mode == 'Debug' else '') + (' HS_META_SIMULATOR_CONFIG' if args.simulator_profile else '') + (' HS_META_DEFER_MOCK_ACTIVATION' if args.defer_mock_activation else '')
         if scope != 'project':
             settings.update(PRODUCT_NAME='$(TARGET_NAME)', PRODUCT_BUNDLE_IDENTIFIER='app.heysophie.capture.photodev' if scope=='app' else 'app.heysophie.capture.photodev.tests', CODE_SIGN_STYLE='Automatic', GENERATE_INFOPLIST_FILE='NO' if scope=='app' else 'YES')
             if scope=='app':
+                settings['LD_RUNPATH_SEARCH_PATHS'] = '$(inherited) @executable_path/Frameworks'
                 settings.update(INFOPLIST_FILE=simulator_plist or ('HeySophie/Info-Meta.plist' if args.dat else 'HeySophie/Info.plist'), MARKETING_VERSION='0.1', CURRENT_PROJECT_VERSION='1', ENABLE_TESTABILITY='YES' if mode=='Debug' else 'NO')
             else:
                 settings.update(TEST_HOST='$(BUILT_PRODUCTS_DIR)/HeySophie.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HeySophie', BUNDLE_LOADER='$(TEST_HOST)')

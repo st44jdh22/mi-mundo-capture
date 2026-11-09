@@ -1,6 +1,6 @@
 # Photo capture development checkpoint
 
-Status: Mac compilation verified; final offline XCTest passes (19/19) and DAT simulator camera-to-disk passes (20/20) with the explicit accessory-required simulator profile. Physical acceptance is not claimed. See the latest continuation below.
+Status: Mac compilation verified; final offline XCTest passes (19/19) and DAT simulator camera-to-disk passes (20/20) with the explicit accessory-required simulator profile. Actual normal-process restart is now verified; bounded network observation is recorded, with packet-level attribution blocked by current privileges. Physical acceptance is not claimed. See the latest continuation below.
 Based on PR #13 at `405c8495169b4738d0b9d2ab46e60159ca868077`.
 This is a dependent draft, not an installable application or a physical-glasses proof.
 
@@ -249,3 +249,36 @@ physical capture, phone installation, account change, software installation,
 Railway access, expenditure or production merge/deployment occurred. The requested
 compiled simulated camera-to-storage path is demonstrated; broader acceptance and
 physical authorisation remain with Zara/Stephen.
+
+
+## Normal app restart, privacy observation and hardware proposal — 9 November 2026
+
+The app now passes a real termination/relaunch proof, not merely a fresh-store test.
+The check exposed and fixed a missing framework runpath that XCTest had masked;
+normal launch initially produced the crash dialogs reported by Stephen. No update,
+reinstallation or Apple Report action was requested. The actual app process now
+captures a DAT mock JPEG, is explicitly terminated and confirmed absent, and a new
+process restores the same file, capture ID, source, receipt and hash. File inode,
+mtime, bytes and manifest remain unchanged; screenshot confirms honest saved status.
+
+The opt-in Debug/simulator-only process harness uses one process-wide owner, the
+normal bridge and normal app store. It is not included in phone/release builds or
+activated by ordinary launches. Initial idle/cancelled startup attempts are recorded
+failures, not substituted passes. Effective built/installed telemetry opt-outs and
+file protection remain unchanged.
+
+Existing nettop/lsof observers recorded app-stopped, normal capture and storage-only
+restore windows. No app-owned TCP/UDP flows or sampled sockets were observed;
+macOS mDNSResponder/nsurlsessiond activity was distinguished by process executable
+paths. Delegated/encrypted traffic cannot be conclusively attributed from these
+counters. Packet capture failed at the OS privilege boundary; no sudo, permission
+change, proxy/certificate/VPN or monitoring installation was attempted. This is
+bounded observation, not zero-egress certification.
+
+Final regressions after the app changes: offline **19/19 PASS**, DAT **20/20 PASS**.
+Commands, private evidence locations, failures and exact observation limits:
+[restart/network verification](RESTART_NETWORK_VERIFICATION.md).
+First real photo [requirements and rollback proposal](PHYSICAL_PHOTO_PROPOSAL.md)
+is prepared only. Actual phone identity/signing team and final physical transport
+plist are explicit pre-install review inputs; no installation, account or Meta
+setting change, physical grant/test, expenditure or production deployment occurred.
