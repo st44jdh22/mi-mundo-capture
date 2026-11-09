@@ -29,12 +29,20 @@ final class DATMockCameraTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let pipeline = PhotoCapturePipeline(disk: try CaptureDisk(root: root))
         let bridge = try DATPhotoBridge(pipeline: pipeline)
+        defer { bridge.stop() }
         let denied = expectation(description: "Camera permission denied")
-        bridge.onFailure = { _ in denied.fulfill() }
+        bridge.onFailure = { error in
+            switch error {
+            case PhotoError.permissionDenied: break
+            default: XCTFail("Expected camera denial, got: \(error.localizedDescription)")
+            }
+            denied.fulfill()
+        }
         bridge.onReady = { XCTFail("Denied camera reached ready") }
         bridge.onSaved = { _ in XCTFail("Denied camera produced a saved receipt") }
-        try bridge.connect(mockPermissionGranted: false)
-        await fulfillment(of: [denied], timeout: 5)
+        do { try bridge.connect(mockPermissionGranted: false) }
+        catch { denied.fulfill(); throw error }
+        await fulfillment(of: [denied], timeout: 30)
         bridge.stop()
         XCTAssertTrue(try pipeline.disk.load().captures.isEmpty)
     }
@@ -44,13 +52,15 @@ final class DATMockCameraTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         let pipeline = PhotoCapturePipeline(disk: try CaptureDisk(root: root))
         let bridge = try DATPhotoBridge(pipeline: pipeline)
+        defer { bridge.stop() }
         let saved = expectation(description: "Official DAT mock camera callback")
         var receipt: PhotoReceipt?
         bridge.onReady = { do { try bridge.capture() } catch { XCTFail("Mock request failed"); saved.fulfill() } }
-        bridge.onFailure = { _ in XCTFail("Mock session failed"); saved.fulfill() }
+        bridge.onFailure = { error in XCTFail("Mock session failed: \(error.localizedDescription)"); saved.fulfill() }
         bridge.onSaved = { value in receipt = value; saved.fulfill() }
-        try bridge.connect()
-        await fulfillment(of: [saved], timeout: 15)
+        do { try bridge.connect() }
+        catch { saved.fulfill(); throw error }
+        await fulfillment(of: [saved], timeout: 30)
         bridge.stop()
         let actual = try XCTUnwrap(receipt)
         XCTAssertEqual(actual.request.source, .datMock)

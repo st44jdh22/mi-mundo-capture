@@ -19,6 +19,9 @@ if [ "${2:-}" = '--dat' ]; then
 else
   python3 ios/generate_project.py
 fi
+# Ad-hoc simulator signing supplies the application identity needed by DAT keychain.
+# No Apple account, development team or provisioning profile is used.
 xcodebuild -project ios/HeySophie.xcodeproj -scheme HeySophie \
   -destination "platform=iOS Simulator,id=$1" \
-  -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO test
+  -derivedDataPath "${HS_META_DERIVED_DATA_PATH:-ios/DerivedData}" -parallel-testing-enabled NO -collect-test-diagnostics never \
+  CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= test

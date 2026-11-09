@@ -115,7 +115,7 @@ import MWDATCamera
 import MWDATMockDevice
 #endif
 
-/// Source prepared against official 1.0.1 API/sample. Native compilation pending.
+/// Built against official 1.0.1. Physical operation remains approval-gated.
 /// One request per stream lifetime prevents late duplicate data being attributed
 /// to another request (PhotoData has no app request UUID).
 @MainActor
@@ -135,6 +135,9 @@ final class DATPhotoBridge {
     private var stopped = false
     private var configured = false
     private var streamHasStarted = false
+    #if targetEnvironment(simulator)
+    private var mockGlasses: (any MockGlasses)?
+    #endif
 
     init(pipeline: PhotoCapturePipeline) throws { self.pipeline = pipeline }
 
@@ -143,9 +146,9 @@ final class DATPhotoBridge {
         do { try Wearables.configure() }
         catch WearablesError.alreadyConfigured { /* same process, another mock test/session */ }
         configured = true
-        MockDeviceKit.shared.enable()
-        if !mockPermissionGranted { MockDeviceKit.shared.permissions.set(.camera, .denied) }
+        MockDeviceKit.shared.enable(config: MockDeviceKitConfig(initialPermissionsGranted: mockPermissionGranted))
         let mock = try MockDeviceKit.shared.pairGlasses(model: .metaRayBanDisplay)
+        mockGlasses = mock
         guard let image = Bundle.main.url(forResource: "synthetic-photo", withExtension: "jpg"),
               let video = Bundle.main.url(forResource: "synthetic-preview", withExtension: "mp4") else { throw PhotoError.invalidJPEG }
         mock.services.camera.setCapturedImage(fileURL: image)
@@ -286,7 +289,7 @@ final class DATPhotoBridge {
         deadline = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(20)) } catch { return }
             guard let self, !self.stopped else { return }
-            self.onFailure?(PhotoError.interrupted)
+            self.onFailure?(self.session == nil ? DATBuildError.discoveryTimedOut : PhotoError.interrupted)
             self.stop()
         }
     }
@@ -297,6 +300,7 @@ final class DATPhotoBridge {
         tokens.clear(); camera?.stop(); session?.stop()
         camera = nil; session = nil; selector = nil
         #if targetEnvironment(simulator)
+        mockGlasses = nil
         if configured { MockDeviceKit.shared.disable() }
         #endif
     }
@@ -317,9 +321,10 @@ final class DATPhotoBridge {
 #endif
 
 enum DATBuildError: LocalizedError {
-    case notLinked, hardwareHold
+    case notLinked, hardwareHold, discoveryTimedOut
     var errorDescription: String? {
         switch self {
+        case .discoveryTimedOut: return "No active wearable was discovered before the 20-second deadline. Check the approved DAT transport configuration; no photo was captured or saved."
         case .notLinked: return "Meta SDK is disabled in this offline build. Use the synthetic photo test."
         case .hardwareHold: return "Physical glasses testing is held for separate installation and permission approval."
         }

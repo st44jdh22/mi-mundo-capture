@@ -1,6 +1,6 @@
 # Photo capture development checkpoint
 
-Status: source prepared, host checks passed; native build and simulator acceptance blocked.
+Status: Mac compilation verified; offline XCTest passes (19/19). DAT mock discovery blocked (18/20 tests pass). Milestone A remains unaccepted.
 Based on PR #13 at `405c8495169b4738d0b9d2ab46e60159ca868077`.
 This is a dependent draft, not an installable application or a physical-glasses proof.
 
@@ -31,7 +31,7 @@ Core/Camera/MockDevice products. Package.resolved pins release commit
 The 1.0.1 Core/Camera Swift interfaces were inspected for the actual session,
 permission, listener and PhotoData APIs. Sample/reference source was inspected at
 `bbae597cd1c748cd29b9375a1624a8d75b1c9e14`; this is distinct from the binary release tag.
-No SDK resolution, download, linking or execution has been validated here.
+SDK 1.0.1 resolution, linking and simulator initialization were verified on 9 November 2026; mock discovery did not complete.
 
 In the DAT simulator variant, Connect configures the official mock Display glasses
 with the fabricated JPEG and a silent preview video. It then uses device discovery,
@@ -60,14 +60,13 @@ ios/checks/run_simulator.sh SIMULATOR_UUID --dat
 ```
 
 The script prints Xcode/Swift versions and installed simulators, runs xcodebuild
-test with CODE_SIGNING_ALLOWED=NO, and restores the offline project after DAT
+test with local ad-hoc signing (CODE_SIGN_IDENTITY=-, empty DEVELOPMENT_TEAM), and restores the offline project after DAT
 runs. It does not install/update Xcode, simulators or developer profiles.
 
 The suite contains the original seven CaptureDisk tests, ten new photo pipeline
 tests, basic controller-state tests and two DAT simulator integration tests
 (official mock callback and denied permission). There are 19 eligible tests in
-the offline variant and 20 in the DAT simulator variant. NONE have run here.
-The official mock tests are prepared, not an independently validated mock workflow.
+the offline variant and 20 in the DAT simulator variant. See the 9 November results below; the two official mock tests fail during discovery.
 
 Host-only checks (Python with Pillow and ffprobe already available):
 
@@ -107,11 +106,10 @@ under these restricted settings still requires the simulator check. If DAT
 requires further transport settings even for mocks, report the exact failure;
 do not broaden privileges silently. The synthetic persistence boundary contains
 no upload path. No network trace was captured, so zero SDK/system telemetry is
-not claimed. SDK/package downloads during a future build are not media uploads.
+not claimed. SDK/package downloads during a build are not media uploads.
 
-Next: run the offline simulator suite on a suitable existing Mac, then resolve
-and run the DAT mock variant. Fix any native/compiler/mock failures before
-seeking a physical installation decision. Milestone A is NOT yet accepted.
+The original Mac-runner dependency is now resolved; see the 9 November results
+and remaining configuration gate below. Milestone A is NOT yet accepted.
 
 Before a physical test, review the exact app ID `app.heysophie.capture.photodev`,
 Mac/Xcode/iPhone/glasses versions, existing pairing state, signing route, Meta
@@ -129,3 +127,85 @@ Official references:
 - https://github.com/meta/meta-wearables-dat-ios/blob/1.0.1/Package.swift
 - https://github.com/meta/meta-wearables-dat-ios/blob/main/samples/CameraAccess/README.md
 - https://github.com/meta/meta-wearables-dat-ios/blob/main/samples/CameraAccess/CameraAccess/ViewModels/CameraViewModel.swift
+
+
+## Verified Mac results, 9 November 2026
+
+PR #17 was checked out at `ebe4e664f0bd48716092686bafcbf16f6a10d4a0` into a new
+local directory because the supplied workspace contained only an empty Git repository.
+Existing PR #13 work and the dependent branch history were preserved.
+
+Environment: macOS 26.6.2 (25G83), Xcode 27.1 (27A9275), Apple Swift 6.4
+(swiftlang-6.4.0.34.1), iPhoneSimulator 27.1 SDK, iPhone 18 Pro / iOS 27.0 runtime.
+iOS 27.0 and 27.1 simulator devices were available. No toolchain/runtime installed.
+
+Commands (existing selected simulator UUID was supplied locally):
+
+```sh
+HS_META_DERIVED_DATA_PATH=/private/tmp/hs-meta-001-deriveddata-offline ios/checks/run_simulator.sh SIMULATOR_UUID
+HS_META_DERIVED_DATA_PATH=/private/tmp/hs-meta-001-deriveddata ios/checks/run_simulator.sh SIMULATOR_UUID --dat
+```
+
+| Check | Verified result |
+| --- | --- |
+| Offline native compile/link | PASS |
+| Offline XCTest, final source | PASS: 19 tests, zero failures, exit 0 |
+| Original CaptureDisk tests | PASS: all seven, in both variants |
+| Photo pipeline tests | PASS: all ten, including exact JPEG bytes/hash after fresh-store reopen |
+| DAT 1.0.1 package resolution/compile/link | PASS; pinned revision unchanged |
+| DAT final suite | FAILED: 20 tests executed; 18 passed, two failed (three assertions), exit 65 |
+| Official mock photo callback | BLOCKED: no active wearable discovered within 20 seconds; no receipt |
+| Mock denied permission | BLOCKED at discovery; test now requires actual permissionDenied, not any failure |
+| Runner syntax / git whitespace | PASS |
+| Actual process restart, runtime network trace, physical glasses, locked phone | NOT RUN |
+
+The initial unsigned DAT run failed with SDK keychain error -34018. Local ad-hoc
+simulator signing resolved it without accounts, certificates or provisioning.
+Signing inside Documents then failed due to Finder/resource-fork metadata in build
+output; a fresh temporary DerivedData directory resolved that failure. Runner now
+accepts HS_META_DERIVED_DATA_PATH, disables parallel test clones and verbose failure
+diagnostics (the initial diagnostic collection stalled). No source files or existing
+build artifacts were deleted to work around metadata.
+
+Mock lifecycle now retains its paired mock, explicitly configures initial permissions
+per connection and reports a discovery-specific deadline. Tests clean up on throwing
+setup, preserve SDK failure text and reject unrelated errors as proof of denial.
+No test was skipped or converted to a pass. Final offline regression passed again.
+
+The saved synthetic fixture is 32x24 JPEG / 742 bytes / SHA-256
+`5096cb4a14663a04ce7aa7ad3274b16e40dc305ad51e7e8e7956e81c7667e0c3`.
+The passing native pipeline test compares stored bytes against the input, then opens
+a fresh CaptureDisk and verifies the receipt/hash. This proves native synthetic
+persistence, not a DAT output or an actual process restart.
+
+Local complete final logs: `/private/tmp/hs-meta-001-offline-final.log` and
+`/private/tmp/hs-meta-001-dat-final.log`. Result bundles:
+`/private/tmp/hs-meta-001-deriveddata-offline/Logs/Test/Test-HeySophie-2026.11.09_15-07-24-+0000.xcresult`
+and `/private/tmp/hs-meta-001-deriveddata/Logs/Test/Test-HeySophie-2026.11.09_15-06-17-+0000.xcresult`.
+Raw logs, simulator identities and generated SDK/build files are not committed.
+
+### Remaining configuration gate
+
+Observed failure: AutoDeviceSelector never publishes an active mock device under
+the restricted Info-Meta.plist. The SDK emits CoreBluetooth connection/state warnings.
+The pinned SDK CHANGELOG (0.9.0 Fixed) states mocks enforce the same Info.plist link
+availability checks as real devices. Missing transport declarations are therefore a
+supported hypothesis, not a proven sole cause. Mock discovery/callback and denied
+permission are NOT accepted.
+
+The brief explicitly requires reporting a mock configuration failure before broadening
+privileges. Info-Meta.plist remains unchanged: no Bluetooth/local-network usage strings,
+Bonjour services, external-accessory protocols or background modes were added. Both
+telemetry opt-outs and complete file protection remain unchanged.
+
+Next reviewable action: approve a simulator-only transport configuration experiment
+in this same branch, comparing the exact pinned SDK/sample requirements for
+NSBluetoothAlwaysUsageDescription, NSLocalNetworkUsageDescription, NSBonjourServices,
+UISupportedExternalAccessoryProtocols and UIBackgroundModes. Record each minimum
+required key and any runtime prompt before granting it; do not enable the physical
+compile flag, enroll accounts, install software or touch the iPhone/glasses. A successful
+mock test would still not authorize the physical milestone.
+
+Reference for the unsigned-keychain failure and simulator ad-hoc signing:
+https://github.com/meta/meta-wearables-dat-ios/issues/197
+(use the issue discussion if the comment anchor changes).
